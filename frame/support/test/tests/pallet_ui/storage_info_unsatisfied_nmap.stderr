@@ -1,0 +1,5 @@
+error: Temporarily disabled due to test flakiness
+  --> $DIR/storage_info_unsatisfied_nmap.rs:27:2
+   |
+27 |     compile_error!("Temporarily disabled due to test flakiness");
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

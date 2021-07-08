@@ -1,0 +1,17 @@
+version: "3.2"
+
+services:
+  dev:
+    container_name: substrate-template
+    image: paritytech/ci-linux:974ba3ac-20201006
+    working_dir: /var/www/substrate-template
+    ports:
+      - "9944:9944"
+    environment:
+      - CARGO_HOME=/var/www/substrate-template/.cargo
+    volumes:
+      - .:/var/www/substrate-template
+      - type: bind
+        source: ./.local
+        target: /root/.local
+    command: bash -c "cargo build --release && ./target/release/substrate-template --dev --ws-external"
