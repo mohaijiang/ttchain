@@ -26,6 +26,7 @@ runtime-benchmarks = [
     'pallet-template/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
+    'storage-order/runtime-benchmarks',
 ]
 std = [
     'codec/std',
@@ -53,6 +54,7 @@ std = [
     'sp-std/std',
     'sp-transaction-pool/std',
     'sp-version/std',
+    'storage-order/std',
 ]
 [dependencies.codec]
 default-features = false
@@ -135,6 +137,11 @@ version = '3.0.0'
 [dependencies.pallet-template]
 default-features = false
 path = '../pallets/template'
+version = '3.0.0'
+
+[dependencies.storage-order]
+default-features = false
+path = '../pallets/storage-order'
 version = '3.0.0'
 
 [dependencies.pallet-timestamp]
