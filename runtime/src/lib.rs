@@ -42,6 +42,9 @@ use pallet_transaction_payment::CurrencyAdapter;
 /// Import the template pallet.
 pub use pallet_template;
 
+/// 存储订单 pallet
+pub use storage_order;
+
 /// An index to a block.
 pub type BlockNumber = u32;
 
@@ -272,6 +275,12 @@ impl pallet_template::Config for Runtime {
 	type Event = Event;
 }
 
+/// storage order Runtime config
+impl storage_order::Config for Runtime {
+	type Event = Event;
+}
+
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -289,6 +298,7 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 		// Include the custom logic from the pallet-template in the runtime.
 		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
+		StorageOrder: storage_order::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
