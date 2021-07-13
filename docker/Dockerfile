@@ -8,6 +8,6 @@ WORKDIR /opt/ttchain/
 
 COPY run.sh /opt/run.sh
 COPY node-template /opt/ttchain/node-template
-
+COPY ./customSpecRaw.json /opt/ttchain/customSpecRaw.json
 
 CMD /opt/run.sh
