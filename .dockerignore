@@ -3,4 +3,8 @@ doc
 Dockerfile
 .dockerignore
 .local
+<<<<<<< HEAD
 **target**
+=======
+node-template
+>>>>>>> eec17239c958fd22cb8c5f837e58fec9bc7bd85b
