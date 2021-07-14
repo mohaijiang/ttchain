@@ -11,4 +11,4 @@ services:
 
 
 
-    command: bash -c "./node-template   --base-path /tmp/node03  --chain ./customSpecRaw.json   --port 30333   --ws-port 9944   --rpc-port 9933   --validator   --name Node03   --ws-external  --rpc-external --rpc-cors all --unsafe-rpc-external --rpc-methods unsafe --unsafe-ws-external   --no-mdns  --bootnodes /ip4/183.66.65.207/tcp/30333/p2p/12D3KooWPWkRYBrVitf61oycG3NdchSkUfCb3PoYVS2wSGKviPCC"
+    command: bash -c "./node-template   --base-path /tmp/node03  --chain ./customSpecRaw.json   --port 30333   --ws-port 9944   --rpc-port 9933   --validator   --name Node03   --ws-external  --rpc-external --rpc-cors all --unsafe-rpc-external --rpc-methods unsafe --unsafe-ws-external   --no-mdns  --bootnodes /ip4/183.66.65.207/tcp/30335/p2p/12D3KooWPWkRYBrVitf61oycG3NdchSkUfCb3PoYVS2wSGKviPCC"
