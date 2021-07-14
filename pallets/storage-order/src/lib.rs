@@ -23,6 +23,8 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
+	#[cfg(feature = "std")]
+	use serde::{Deserialize, Serialize};
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]

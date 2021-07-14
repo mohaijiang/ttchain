@@ -39,7 +39,8 @@ std = [
     'frame-support/std',
     'frame-system/std',
     'frame-benchmarking/std',
-    "sp-std/std",
+    'sp-std/std',
+    'serde',
 ]
 try-runtime = ['frame-support/try-runtime']
 [dependencies.codec]
@@ -72,3 +73,10 @@ default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
+
+[dependencies.serde]
+optional = true
+version = "1.0.126"
+
+[dependencies]
+serde_json = "1.0.59"
