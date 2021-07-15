@@ -6,18 +6,10 @@
 
 pub use pallet::*;
 
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
-
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
-
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{
+		ensure,
 		codec::{Decode, Encode},
 		dispatch::DispatchResult, pallet_prelude::*
 	};
@@ -31,6 +23,9 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		/// 订单等待时间
+		type OrderWaitingTime: Get<Self::BlockNumber>;
 	}
 
 	#[pallet::pallet]
@@ -98,14 +93,6 @@ pub mod pallet {
 		}
 	}
 
-	// The pallet's runtime storage items.
-	// https://substrate.dev/docs/en/knowledgebase/runtime/storage
-	#[pallet::storage]
-	#[pallet::getter(fn something)]
-	// Learn more about declaring storage items:
-	// https://substrate.dev/docs/en/knowledgebase/runtime/storage#declaring-storage-items
-	pub type Something<T> = StorageValue<_, u32>;
-
 	// 存储订单个数
 	#[pallet::storage]
 	#[pallet::getter(fn order_count)]
@@ -126,17 +113,37 @@ pub mod pallet {
 	#[pallet::getter(fn user_order_index)]
 	pub(super) type UserOrderIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u128, u128, OptionQuery>;
 
+	// 矿工订单个数
+	#[pallet::storage]
+	#[pallet::getter(fn miner_order_count)]
+	pub(super) type MinerOrderCount<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u128, ValueQuery>;
+
+	// 矿工订单数据
+	#[pallet::storage]
+	#[pallet::getter(fn miner_order_index)]
+	pub(super) type MinerOrderIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u128, u128, OptionQuery>;
+
+	// 块高存储订单集合
+	#[pallet::storage]
+	#[pallet::getter(fn order_set_of_block)]
+	pub(super) type OrderSetOfBlock<T: Config> = StorageMap<_, Twox64Concat, T::BlockNumber, Vec<u128>, OptionQuery>;
+
+	// 订单对应矿工集合
+	#[pallet::storage]
+	#[pallet::getter(fn miner_set_of_order)]
+	pub(super) type MinerSetOfOrder<T: Config> = StorageMap<_, Twox64Concat, u128, Vec<T::AccountId>, OptionQuery>;
+
+
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
 	#[pallet::metadata(T::AccountId = "AccountId")]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event documentation should end with an array that provides descriptive names for event
-		/// parameters. [something, who]
-		SomethingStored(u32, T::AccountId),
 		/// 订单创建
 		OrderCreated(u128, Vec<u8>, T::AccountId, Vec<u8>, T::BlockNumber, u32),
+		/// 订单完成
+		OrderFinish(u128),
 	}
 
 	// Errors inform users that something went wrong.
@@ -146,6 +153,16 @@ pub mod pallet {
 		NoneValue,
 		/// Errors should have helpful documentation associated with them.
 		StorageOverflow,
+		/// 非法矿工
+		IllegalMiner,
+		/// 非法文件CID
+		IllegalFileCID,
+		/// 订单已经取消
+		OrderCancelled,
+		/// 已经调用订单完成
+		AlreadyCallOrderFinish,
+		/// 订单不存在
+		OrderDoesNotExist,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -153,46 +170,16 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://substrate.dev/docs/en/knowledgebase/runtime/origin
-			let who = ensure_signed(origin)?;
-
-			// Update storage.
-			<Something<T>>::put(something);
-
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored(something, who));
-			// Return a successful DispatchResultWithPostInfo
-			Ok(())
-		}
-
-		/// An example dispatchable that may throw a custom error.
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
-
-			// Read a value from storage.
-			match <Something<T>>::get() {
-				// Return an error if the value has not been set.
-				None => Err(Error::<T>::NoneValue)?,
-				Some(old) => {
-					// Increment the value read from storage; will error in the event of overflow.
-					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-					// Update the value in storage with the incremented result.
-					<Something<T>>::put(new);
-					Ok(())
-				},
-			}
-		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn create_order(origin: OriginFor<T>, cid: Vec<u8>, file_name: Vec<u8>, price: u128,
-							duration: T::BlockNumber, size: u32) -> DispatchResult {
+		pub fn create_order(
+			origin: OriginFor<T>,
+			cid: Vec<u8>,
+			file_name: Vec<u8>,
+			price: u128,
+			duration: T::BlockNumber,
+			size: u32
+		) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
 			// https://substrate.dev/docs/en/knowledgebase/runtime/origin
@@ -205,7 +192,15 @@ pub mod pallet {
 			//获得存储期限
 			let storage_deadline = block_number + duration;
 			//创建订单
-			let order = StorageOrder::new(order_index,cid.into(),who.clone(),file_name.into(),price,storage_deadline,size,block_number);
+			let order = StorageOrder::new(
+				order_index,
+				cid.clone(),
+				who.clone(),
+				file_name.clone(),
+				price,
+				storage_deadline,
+				size,
+				block_number.clone());
 			//存入区块数据
 			OrderInfo::<T>::insert(&order_index, order.clone());
 			//获得用户索引个数
@@ -213,14 +208,66 @@ pub mod pallet {
 			//存入用户索引数据
 			UserOrderIndex::<T>::insert(&who,&user_order_index,order_index);
 			//订单长度+1
-			let order_index = order_index + 1;
-			OrderCount::<T>::put(order_index);
+			OrderCount::<T>::put(order_index + 1);
 			//用户索引个数+1
-			let user_order_index = user_order_index + 1 ;
-			UserOrderCount::<T>::insert(&who,user_order_index);
+			UserOrderCount::<T>::insert(&who,user_order_index + 1);
+			//添加块高存储订单集合
+			let mut order_set = OrderSetOfBlock::<T>::get(&block_number).unwrap_or(Vec::<u128>::new());
+			order_set.push(order_index);
+			OrderSetOfBlock::<T>::insert(&block_number,order_set);
 			//发送订单创建事件
 			Self::deposit_event(Event::OrderCreated(order.index,order.cid,order.account_id,order.file_name,
 													order.storage_deadline,order.size));
+			// Return a successful DispatchResultWithPostInfo
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn finish_order(
+			origin: OriginFor<T>,
+			miner: T::AccountId,
+			order_index: u128,
+			cid: Vec<u8>
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			//校验是否为矿工
+			ensure!(&who == &miner, Error::<T>::IllegalMiner);
+			//获取订单
+			let mut order_info = OrderInfo::<T>::get(&order_index).ok_or(Error::<T>::OrderDoesNotExist)?;
+			//检验文件cid是否正确
+			ensure!(&order_info.cid == &cid, Error::<T>::IllegalFileCID);
+			//校验文件状态 如果文件状态为待处理则改为已完成
+			match &order_info.status {
+				StorageOrderStatus::Canceled => Err(Error::<T>::OrderDoesNotExist)?,
+				StorageOrderStatus::Pending => order_info.status = StorageOrderStatus::Finished,
+				_ => (),
+			}
+			//判断订单是否已经提交
+			let mut miners = MinerSetOfOrder::<T>::get(&order_index).unwrap_or(Vec::<T::AccountId>::new());
+			//遍历矿工是否存在，如果存在则报已经完成订单，如果不存在则进行添加
+			match miners.binary_search(&miner) {
+				// If the search succeeds, the caller is already a miners, so just return
+				Ok(_) => Err(Error::<T>::AlreadyCallOrderFinish)?,
+				// If the search fails, the caller is not a miners and we learned the index where
+				// they should be inserted
+				Err(index) => {
+					miners.insert(index, miner.clone());
+					MinerSetOfOrder::<T>::insert(&order_index,miners);
+				}
+			}
+			//订单信息副本数+1
+			order_info.replication = order_info.replication + 1;
+			//维护订单信息
+			OrderInfo::<T>::insert(&order_index,order_info);
+			//获得矿工索引个数
+			let miner_order_index = MinerOrderCount::<T>::get(&miner);
+			//存入矿工索引数据
+			MinerOrderIndex::<T>::insert(&miner,&miner_order_index,order_index);
+			//矿工索引个数+1
+			MinerOrderCount::<T>::insert(&miner,miner_order_index + 1);
+
+			//发送订单完成事件
+			Self::deposit_event(Event::OrderFinish(order_index));
 			// Return a successful DispatchResultWithPostInfo
 			Ok(())
 		}

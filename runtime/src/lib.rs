@@ -275,9 +275,14 @@ impl pallet_template::Config for Runtime {
 	type Event = Event;
 }
 
+parameter_types! {
+	pub const OrderWaitingTime: BlockNumber = 30 * MINUTES;
+}
+
 /// storage order Runtime config
 impl storage_order::Config for Runtime {
 	type Event = Event;
+	type OrderWaitingTime = OrderWaitingTime;
 }
 
 
