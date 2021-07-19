@@ -3,6 +3,5 @@ doc
 Dockerfile
 .dockerignore
 .local
-**target**
 node-template
 
