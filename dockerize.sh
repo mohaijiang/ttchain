@@ -1,23 +1,7 @@
 #!/bin/bash
-REGISTRY="183.66.65.207:5000"
+REGISTRY="registry.onecloud.newtouch.com"
 PACKAGE_VERSION=1.0.0
-IMAGEID="$REGISTRY/ttchain/miner-worker:$PACKAGE_VERSION"
-echo "Building $REGISTRY/ttchain/miner-worker:$PACKAGE_VERSION ..."
+IMAGEID="$REGISTRY/ttc/ttchain:$PACKAGE_VERSION"
+echo "Building $REGISTRY/ttc/ttchain:$PACKAGE_VERSION ..."
+docker run -it --rm -v $PWD:/app -w /app -v $PWD/.cargo/config:/root/.cargo/config paritytech/ci-linux:363245ca-20210706 cargo build --release
 docker build -t $IMAGEID .
-#
-#while [ -n "$1" ]
-#    do
-#        case "$1" in
-#            -p|--push)
-#                docker push $IMAGEID
-#                break
-#                ;;
-#            --)
-#                shift
-#                break
-#                ;;
-#            *)
-#                return 0
-#                ;;
-#        esac
-#    done
