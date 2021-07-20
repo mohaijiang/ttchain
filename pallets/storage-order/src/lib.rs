@@ -5,18 +5,30 @@
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
 
 pub use pallet::*;
+use sp_std::vec::Vec;
+use frame_support::{
+	traits::{Currency},
+	ensure,
+	codec::{Decode, Encode},
+	dispatch::DispatchResult, pallet_prelude::*
+};
+use sp_runtime::traits::Convert;
+
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
+
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{
-		ensure,
-		codec::{Decode, Encode},
-		dispatch::DispatchResult, pallet_prelude::*
-	};
 	use frame_system::pallet_prelude::*;
-	use sp_std::vec::Vec;
-	#[cfg(feature = "std")]
-	use serde::{Deserialize, Serialize};
+	use super::*;
+
+	type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
+	pub struct Pallet<T>(_);
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -26,11 +38,15 @@ pub mod pallet {
 
 		/// 订单等待时间
 		type OrderWaitingTime: Get<Self::BlockNumber>;
+
+		/// 支付费用和持有余额的货币。
+		type Currency: Currency<Self::AccountId>;
+
+		/// 金额转换数字
+		type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
 	}
 
-	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
-	pub struct Pallet<T>(_);
+
 
 	#[derive( Encode, Decode, RuntimeDebug, PartialEq, Eq, Copy, Clone)]
 	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -49,12 +65,12 @@ pub mod pallet {
 		}
 	}
 
-	/// A single bid on a gilt, an item of a *queue* in `Queues`.
+
 	#[derive(Encode, Decode, RuntimeDebug,Clone, Eq, PartialEq, Default)]
 	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-	pub struct StorageOrder<AccountId,BlockNumber> {
+	pub struct StorageOrder<AccountId, BlockNumber> {
 		/// 订单索引
-		pub index: u128,
+		pub index: u64,
 		/// cid
 		pub cid: Vec<u8>,
 		/// AccountId
@@ -62,6 +78,7 @@ pub mod pallet {
 		/// 文件名
 		pub file_name: Vec<u8>,
 		/// 支付价格
+		#[cfg_attr(feature = "std", serde(serialize_with = "string_serialize"))]
 		pub price: u128,
 		/// 存储期限
 		pub storage_deadline: BlockNumber,
@@ -75,8 +92,17 @@ pub mod pallet {
 		pub replication: u32,
 	}
 
-	impl<AccountId, BlockNumber> StorageOrder<AccountId,BlockNumber> {
-		fn new (index: u128, cid: Vec<u8>, account_id: AccountId, file_name: Vec<u8>,
+	// u128 does not serialize well into JSON for `handlebars`, so we represent it as a string.
+	#[cfg(feature = "std")]
+	fn string_serialize<S>(x: &u128, s: S) -> Result<S::Ok, S::Error>
+		where
+			S: serde::Serializer,
+	{
+		s.serialize_str(&x.to_string())
+	}
+
+	impl<AccountId, BlockNumber> StorageOrder<AccountId, BlockNumber> {
+		fn new (index: u64, cid: Vec<u8>, account_id: AccountId, file_name: Vec<u8>,
 			   price: u128, storage_deadline: BlockNumber, size: u32, block_number: BlockNumber) -> Self {
 			StorageOrder {
 				index,
@@ -93,45 +119,63 @@ pub mod pallet {
 		}
 	}
 
+	#[derive(Encode, Decode, RuntimeDebug,Clone, Eq, PartialEq, Default)]
+	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+	pub struct OrderPage<AccountId, BlockNumber> {
+		/// 内容
+		pub content: Vec<StorageOrder<AccountId, BlockNumber>>,
+		/// cid
+		pub total: u64
+	}
+
+	impl<AccountId, BlockNumber> OrderPage<AccountId, BlockNumber> {
+		pub(crate) fn new (content: Vec<StorageOrder<AccountId, BlockNumber>>, total: u64) -> Self {
+			OrderPage {
+				content,
+				total
+			}
+		}
+	}
+
 	// 存储订单个数
 	#[pallet::storage]
 	#[pallet::getter(fn order_count)]
-	pub(super) type OrderCount<T: Config> = StorageValue<_, u128, ValueQuery>;
+	pub(super) type OrderCount<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// 存储订单信息
 	#[pallet::storage]
 	#[pallet::getter(fn order_info)]
-	pub(super) type OrderInfo<T: Config> = StorageMap<_, Twox64Concat, u128, StorageOrder<T::AccountId,T::BlockNumber>, OptionQuery>;
+	pub(super) type OrderInfo<T: Config> = StorageMap<_, Twox64Concat, u64, StorageOrder<T::AccountId, T::BlockNumber>, OptionQuery>;
 
 	// 用户订单个数
 	#[pallet::storage]
 	#[pallet::getter(fn user_order_count)]
-	pub(super) type UserOrderCount<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u128, ValueQuery>;
+	pub(super) type UserOrderCount<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
 
 	// 用户订单数据
 	#[pallet::storage]
 	#[pallet::getter(fn user_order_index)]
-	pub(super) type UserOrderIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u128, u128, OptionQuery>;
+	pub(super) type UserOrderIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, u64, OptionQuery>;
 
 	// 矿工订单个数
 	#[pallet::storage]
 	#[pallet::getter(fn miner_order_count)]
-	pub(super) type MinerOrderCount<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u128, ValueQuery>;
+	pub(super) type MinerOrderCount<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
 
 	// 矿工订单数据
 	#[pallet::storage]
 	#[pallet::getter(fn miner_order_index)]
-	pub(super) type MinerOrderIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u128, u128, OptionQuery>;
+	pub(super) type MinerOrderIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, u64, OptionQuery>;
 
 	// 块高存储订单集合
 	#[pallet::storage]
 	#[pallet::getter(fn order_set_of_block)]
-	pub(super) type OrderSetOfBlock<T: Config> = StorageMap<_, Twox64Concat, T::BlockNumber, Vec<u128>, OptionQuery>;
+	pub(super) type OrderSetOfBlock<T: Config> = StorageMap<_, Twox64Concat, T::BlockNumber, Vec<u64>, OptionQuery>;
 
 	// 订单对应矿工集合
 	#[pallet::storage]
 	#[pallet::getter(fn miner_set_of_order)]
-	pub(super) type MinerSetOfOrder<T: Config> = StorageMap<_, Twox64Concat, u128, Vec<T::AccountId>, OptionQuery>;
+	pub(super) type MinerSetOfOrder<T: Config> = StorageMap<_, Twox64Concat, u64, Vec<T::AccountId>, OptionQuery>;
 
 
 	// Pallets use events to inform users when important changes are made.
@@ -141,10 +185,40 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// 订单创建
-		OrderCreated(u128, Vec<u8>, T::AccountId, Vec<u8>, T::BlockNumber, u32),
+		OrderCreated(u64, Vec<u8>, T::AccountId, Vec<u8>, T::BlockNumber, u32),
 		/// 订单完成
-		OrderFinish(u128),
+		OrderFinish(u64),
+		/// 订单取消
+		OrderCanceled(u64, Vec<u8>),
 	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(now: T::BlockNumber) -> Weight {
+			//判断当前块高是否大于订单等待时长
+			if now >= T::OrderWaitingTime::get() {
+				//获得等待时长之前的块索引
+				let block_index = now - T::OrderWaitingTime::get();
+				let order_set = OrderSetOfBlock::<T>::get(&block_index).unwrap_or(Vec::<u64>::new());
+				for order_index in &order_set {
+					//获取订单信息
+					match OrderInfo::<T>::get(order_index) {
+						Some(mut order_info) => {
+							if let StorageOrderStatus::Pending = order_info.status {
+								order_info.status = StorageOrderStatus::Canceled;
+								OrderInfo::<T>::insert(order_index,order_info.clone());
+								//发送订单取消时间事件
+								Self::deposit_event(Event::OrderCanceled(order_index.clone() , order_info.cid));
+							}
+						},
+						None => ()
+					}
+				}
+			}
+			0
+		}
+	}
+
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
@@ -176,7 +250,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			cid: Vec<u8>,
 			file_name: Vec<u8>,
-			price: u128,
+			price: BalanceOf<T>,
 			duration: T::BlockNumber,
 			size: u32
 		) -> DispatchResult {
@@ -197,7 +271,7 @@ pub mod pallet {
 				cid.clone(),
 				who.clone(),
 				file_name.clone(),
-				price,
+				T::BalanceToNumber::convert(price),
 				storage_deadline,
 				size,
 				block_number.clone());
@@ -212,7 +286,7 @@ pub mod pallet {
 			//用户索引个数+1
 			UserOrderCount::<T>::insert(&who,user_order_index + 1);
 			//添加块高存储订单集合
-			let mut order_set = OrderSetOfBlock::<T>::get(&block_number).unwrap_or(Vec::<u128>::new());
+			let mut order_set = OrderSetOfBlock::<T>::get(&block_number).unwrap_or(Vec::<u64>::new());
 			order_set.push(order_index);
 			OrderSetOfBlock::<T>::insert(&block_number,order_set);
 			//发送订单创建事件
@@ -226,7 +300,7 @@ pub mod pallet {
 		pub fn finish_order(
 			origin: OriginFor<T>,
 			miner: T::AccountId,
-			order_index: u128,
+			order_index: u64,
 			cid: Vec<u8>
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -271,5 +345,40 @@ pub mod pallet {
 			// Return a successful DispatchResultWithPostInfo
 			Ok(())
 		}
+	}
+}
+
+
+impl<T: Config> Pallet<T> {
+
+	// Add public immutables and private mutables.
+	pub fn page_user_order(account_id: T::AccountId, current: u64, size: u64, sort: u8) -> OrderPage<T::AccountId,T::BlockNumber> {
+		let total = UserOrderCount::<T>::get(account_id) as u64;
+		let current = if current == 0 { 1 } else { current };
+		let list =  if sort == 0 {
+			let begin = (current - 1) * size;
+			let end = if current * size > total { total } else { current * size };
+			Self::get_order_list(begin, end)
+		} else {
+			let begin = if total >  current * size { total - current * size } else { 0 };
+			let end = if total > ((current - 1) * size +1 ) { total - ((current - 1) * size +1 ) } else { 0 };
+			let mut list = Self::get_order_list(begin, end);
+			list.reverse();
+			list
+		};
+		OrderPage::new(list, total)
+	}
+
+	fn get_order_list(begin: u64,end: u64) -> Vec<StorageOrder<T::AccountId,T::BlockNumber>> {
+		let mut list = Vec::<StorageOrder<T::AccountId,T::BlockNumber>>::new();
+		for i in begin..end {
+			match OrderInfo::<T>::get(i){
+				Some(t) => {
+					list.push(t);
+				},
+				None => ()
+			}
+		}
+		list
 	}
 }

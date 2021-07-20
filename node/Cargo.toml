@@ -171,5 +171,10 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
+[dependencies.storage-order-rpc]
+default-features = false
+path = '../pallets/storage-order/rpc'
+version = '3.0.0'
+
 [[bin]]
 name = 'node-template'

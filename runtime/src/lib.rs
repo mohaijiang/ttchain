@@ -13,7 +13,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionValidity, TransactionSource},
 };
 use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, AccountIdLookup, Verify, IdentifyAccount, NumberFor,
+	BlakeTwo256, Block as BlockT, AccountIdLookup, Verify, IdentifyAccount, NumberFor, ConvertInto
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -44,6 +44,7 @@ pub use pallet_template;
 
 /// 存储订单 pallet
 pub use storage_order;
+use storage_order::OrderPage;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -282,7 +283,9 @@ parameter_types! {
 /// storage order Runtime config
 impl storage_order::Config for Runtime {
 	type Event = Event;
+	type Currency = Balances;
 	type OrderWaitingTime = OrderWaitingTime;
+	type BalanceToNumber = ConvertInto;
 }
 
 
@@ -457,6 +460,12 @@ impl_runtime_apis! {
 			len: u32,
 		) -> pallet_transaction_payment::FeeDetails<Balance> {
 			TransactionPayment::query_fee_details(uxt, len)
+		}
+	}
+
+	impl storage_order_runtime_api::StorageOrderApi<Block, AccountId, BlockNumber> for Runtime {
+		fn page_user_order(account_id: AccountId, current: u64, size: u64, sort: u8) -> OrderPage<AccountId, BlockNumber> {
+			StorageOrder::page_user_order(account_id, current, size, sort)
 		}
 	}
 

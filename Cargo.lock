@@ -3661,6 +3661,7 @@ dependencies = [
  "sp-runtime",
  "sp-timestamp",
  "sp-transaction-pool",
+ "storage-order-rpc",
  "structopt",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
@@ -3699,6 +3700,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "storage-order",
+ "storage-order-runtime-api",
  "substrate-wasm-builder",
 ]
 
@@ -7097,6 +7099,33 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "storage-order-rpc"
+version = "3.0.0"
+dependencies = [
+ "futures 0.3.15",
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "parity-scale-codec",
+ "sc-rpc",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-runtime",
+ "storage-order-runtime-api",
+]
+
+[[package]]
+name = "storage-order-runtime-api"
+version = "3.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "serde_json",
+ "sp-api",
+ "storage-order",
 ]
 
 [[package]]
