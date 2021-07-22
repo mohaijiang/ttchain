@@ -94,9 +94,8 @@ pub mod pallet {
 
 	// u128 does not serialize well into JSON for `handlebars`, so we represent it as a string.
 	#[cfg(feature = "std")]
-	fn string_serialize<S>(x: &u128, s: S) -> Result<S::Ok, S::Error>
-		where
-			S: serde::Serializer,
+	fn string_serialize<S>(x: &u128, s: S) -> Result<S::Ok, S::Error> where
+		S: serde::Serializer
 	{
 		s.serialize_str(&x.to_string())
 	}
@@ -353,31 +352,37 @@ impl<T: Config> Pallet<T> {
 
 	// Add public immutables and private mutables.
 	pub fn page_user_order(account_id: T::AccountId, current: u64, size: u64, sort: u8) -> OrderPage<T::AccountId,T::BlockNumber> {
-		let total = UserOrderCount::<T>::get(account_id) as u64;
+		let total = UserOrderCount::<T>::get(&account_id) as u64;
 		let current = if current == 0 { 1 } else { current };
 		let list =  if sort == 0 {
 			let begin = (current - 1) * size;
 			let end = if current * size > total { total } else { current * size };
-			Self::get_order_list(begin, end)
+			Self::get_order_list(&account_id, begin, end)
 		} else {
 			let begin = if total >  current * size { total - current * size } else { 0 };
 			let end = if total > ((current - 1) * size +1 ) { total - ((current - 1) * size +1 ) } else { 0 };
-			let mut list = Self::get_order_list(begin, end);
+			let mut list = Self::get_order_list(&account_id,begin, end);
 			list.reverse();
 			list
 		};
 		OrderPage::new(list, total)
 	}
 
-	fn get_order_list(begin: u64,end: u64) -> Vec<StorageOrder<T::AccountId,T::BlockNumber>> {
+	fn get_order_list(account_id: &T::AccountId,begin: u64,end: u64) -> Vec<StorageOrder<T::AccountId,T::BlockNumber>> {
 		let mut list = Vec::<StorageOrder<T::AccountId,T::BlockNumber>>::new();
 		for i in begin..end {
-			match OrderInfo::<T>::get(i){
-				Some(t) => {
-					list.push(t);
+			match UserOrderIndex::<T>::get(account_id,i){
+				Some(index) =>{
+					match OrderInfo::<T>::get(index){
+						Some(t) => {
+							list.push(t);
+						},
+						None => ()
+					}
 				},
 				None => ()
 			}
+
 		}
 		list
 	}
