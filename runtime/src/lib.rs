@@ -46,6 +46,9 @@ pub use pallet_template;
 pub use storage_order;
 use storage_order::OrderPage;
 
+/// 工作者模块
+pub use worker;
+
 /// An index to a block.
 pub type BlockNumber = u32;
 
@@ -288,6 +291,19 @@ impl storage_order::Config for Runtime {
 	type BalanceToNumber = ConvertInto;
 }
 
+parameter_types! {
+	pub const ReportInterval: BlockNumber = 30 * MINUTES;
+}
+
+/// storage order Runtime config
+impl worker::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type ReportInterval = ReportInterval;
+	type BalanceToNumber = ConvertInto;
+	type StorageOrderInterface = StorageOrder;
+}
+
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -307,6 +323,7 @@ construct_runtime!(
 		// Include the custom logic from the pallet-template in the runtime.
 		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
 		StorageOrder: storage_order::{Pallet, Call, Storage, Event<T>},
+		Worker: worker::{Pallet, Call, Storage, Event<T>},
 	}
 );
 

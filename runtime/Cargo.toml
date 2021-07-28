@@ -150,6 +150,11 @@ default-features = false
 path = '../pallets/storage-order/runtime-api'
 version = '3.0.0'
 
+[dependencies.worker]
+default-features = false
+path = '../pallets/worker'
+version = '3.0.0'
+
 [dependencies.pallet-timestamp]
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'

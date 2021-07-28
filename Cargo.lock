@@ -3702,6 +3702,7 @@ dependencies = [
  "storage-order",
  "storage-order-runtime-api",
  "substrate-wasm-builder",
+ "worker",
 ]
 
 [[package]]
@@ -8566,6 +8567,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2986deb581c4fe11b621998a5e53361efe6b48a151178d0cd9eeffa4dc6acc9"
 dependencies = [
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "worker"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "storage-order",
 ]
 
 [[package]]
