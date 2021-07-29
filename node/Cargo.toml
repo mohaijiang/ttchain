@@ -23,6 +23,8 @@ targets = ['x86_64-unknown-linux-gnu']
 [dependencies]
 jsonrpc-core = '15.1.0'
 structopt = '0.3.8'
+futures = "0.3.9"
+hex-literal = "0.3.1"
 
 [dependencies.frame-benchmarking]
 git = 'https://gitee.com/mohaijiang/substrate.git'
@@ -37,6 +39,8 @@ version = '3.0.0'
 [dependencies.node-template-runtime]
 path = '../runtime'
 version = '3.0.0'
+
+
 
 [dependencies.pallet-transaction-payment-rpc]
 git = 'https://gitee.com/mohaijiang/substrate.git'
@@ -65,6 +69,11 @@ tag = 'monthly-2021-07'
 version = '0.9.0'
 
 [dependencies.sc-consensus-aura]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.sc-consensus-babe]
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '0.9.0'
@@ -131,7 +140,17 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '0.9.0'
 
+[dependencies.sp-keystore]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
 [dependencies.sp-consensus-aura]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.sp-consensus-babe]
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '0.9.0'
@@ -140,6 +159,14 @@ version = '0.9.0'
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
+
+[dependencies.sp-authorship]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+
+
 
 [dependencies.sp-finality-grandpa]
 git = 'https://gitee.com/mohaijiang/substrate.git'
@@ -175,6 +202,78 @@ version = '3.0.0'
 default-features = false
 path = '../pallets/storage-order/rpc'
 version = '3.0.0'
+
+
+[dependencies.pallet-contracts-rpc]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-mmr-rpc]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.sc-consensus-babe-rpc]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.sc-finality-grandpa-rpc]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.sc-sync-state-rpc]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.sc-consensus-epochs]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.sc-network]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.sc-consensus-slots]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.sc-consensus-uncles]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.sc-chain-spec]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.sc-authority-discovery]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.sp-authority-discovery]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.sc-finality-grandpa-warp-sync]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '0.9.0'
+
+[dependencies.pallet-staking]
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
 
 [[bin]]
 name = 'node-template'
