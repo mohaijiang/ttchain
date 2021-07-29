@@ -292,7 +292,7 @@ impl storage_order::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ReportInterval: BlockNumber = 30 * MINUTES;
+	pub const ReportInterval: BlockNumber = 1 * DAYS;
 }
 
 /// storage order Runtime config

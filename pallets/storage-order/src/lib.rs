@@ -8,7 +8,6 @@ pub use pallet::*;
 use sp_std::vec::Vec;
 use frame_support::{
 	traits::{Currency},
-	ensure,
 	codec::{Decode, Encode},
 	dispatch::DispatchResult, pallet_prelude::*
 };
@@ -329,9 +328,9 @@ pub trait StorageOrderInterface {
 	/// 通过订单index获得存储订单信息
 	fn get_storage_order(order_index: &u64) -> Option<StorageOrder<Self::AccountId,Self::BlockNumber>>;
 	/// 添加订单副本
-	fn add_order_replication(order_index: &u64) -> DispatchResult;
+	fn add_order_replication(order_index: &u64);
 	/// 减少订单副本
-	fn sub_order_replication(order_index: &u64) -> DispatchResult;
+	fn sub_order_replication(order_index: &u64);
 }
 
 impl<T: Config> StorageOrderInterface for Pallet<T> {
@@ -342,34 +341,34 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 		OrderInfo::<T>::get(order_index)
 	}
 
-	fn add_order_replication(order_index: &u64) -> DispatchResult {
+	fn add_order_replication(order_index: &u64) {
 		//获取订单
-		let mut order_info = OrderInfo::<T>::get(order_index).ok_or(Error::<T>::OrderDoesNotExist)?;
-		//校验文件状态 如果文件状态为待处理则改为已完成
-		match &order_info.status {
-			StorageOrderStatus::Canceled => Err(Error::<T>::OrderDoesNotExist)?,
-			StorageOrderStatus::Pending => order_info.status = StorageOrderStatus::Finished,
-			_ => (),
+		if let Some(mut order_info) = OrderInfo::<T>::get(order_index){
+			//校验文件状态 如果文件状态为待处理则改为已完成
+			if let StorageOrderStatus::Canceled = &order_info.status {
+				return;
+			}
+			if let StorageOrderStatus::Pending = &order_info.status {
+				order_info.status = StorageOrderStatus::Finished;
+			}
+			//订单信息副本数+1
+			order_info.replication = order_info.replication + 1;
+			OrderInfo::<T>::insert(order_index,order_info);
 		}
-		//订单信息副本数+1
-		order_info.replication = order_info.replication + 1;
-		OrderInfo::<T>::insert(order_index,order_info);
-		Ok(())
 	}
 
-	fn sub_order_replication(order_index: &u64) -> DispatchResult {
+	fn sub_order_replication(order_index: &u64) {
 		//获取订单
-		let mut order_info = OrderInfo::<T>::get(order_index).ok_or(Error::<T>::OrderDoesNotExist)?;
-		//校验文件状态 如果文件状态为待处理则改为已完成
-		match &order_info.status {
-			StorageOrderStatus::Canceled => Err(Error::<T>::OrderDoesNotExist)?,
-			_ => (),
+		if let Some(mut order_info) = OrderInfo::<T>::get(order_index) {
+			//校验文件状态 如果文件状态为待处理则改为已完成
+			if let StorageOrderStatus::Canceled = &order_info.status {
+				return;
+			}
+			//订单信息副本数-1
+			if order_info.replication > 0 {
+				order_info.replication = order_info.replication - 1;
+			}
+			OrderInfo::<T>::insert(order_index,order_info);
 		}
-		//订单信息副本数-1
-		if order_info.replication > 0 {
-			order_info.replication = order_info.replication - 1;
-		}
-		OrderInfo::<T>::insert(order_index,order_info);
-		Ok(())
 	}
 }
