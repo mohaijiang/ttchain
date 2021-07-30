@@ -55,7 +55,9 @@ std = [
     'sp-transaction-pool/std',
     'sp-version/std',
     'storage-order/std',
-    'storage-order-runtime-api/std'
+    'storage-order-runtime-api/std',
+    'worker/std',
+    'worker-runtime-api/std'
 ]
 [dependencies.codec]
 default-features = false
@@ -153,6 +155,11 @@ version = '3.0.0'
 [dependencies.worker]
 default-features = false
 path = '../pallets/worker'
+version = '3.0.0'
+
+[dependencies.worker-runtime-api]
+default-features = false
+path = '../pallets/worker/runtime-api'
 version = '3.0.0'
 
 [dependencies.pallet-timestamp]

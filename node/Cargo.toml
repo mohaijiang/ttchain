@@ -176,5 +176,10 @@ default-features = false
 path = '../pallets/storage-order/rpc'
 version = '3.0.0'
 
+[dependencies.worker-rpc]
+default-features = false
+path = '../pallets/worker/rpc'
+version = '3.0.0'
+
 [[bin]]
 name = 'node-template'

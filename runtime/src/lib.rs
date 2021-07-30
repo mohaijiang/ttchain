@@ -48,6 +48,7 @@ use storage_order::OrderPage;
 
 /// 工作者模块
 pub use worker;
+use worker::MinerOrderPage;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -293,6 +294,8 @@ impl storage_order::Config for Runtime {
 
 parameter_types! {
 	pub const ReportInterval: BlockNumber = 1 * DAYS;
+	//定义文件副本收益限额 eg：前10可获得奖励
+	pub const AverageIncomeLimit: u8 = 10;
 }
 
 /// storage order Runtime config
@@ -302,6 +305,7 @@ impl worker::Config for Runtime {
 	type ReportInterval = ReportInterval;
 	type BalanceToNumber = ConvertInto;
 	type StorageOrderInterface = StorageOrder;
+	type AverageIncomeLimit = AverageIncomeLimit;
 }
 
 
@@ -483,6 +487,12 @@ impl_runtime_apis! {
 	impl storage_order_runtime_api::StorageOrderApi<Block, AccountId, BlockNumber> for Runtime {
 		fn page_user_order(account_id: AccountId, current: u64, size: u64, sort: u8) -> OrderPage<AccountId, BlockNumber> {
 			StorageOrder::page_user_order(account_id, current, size, sort)
+		}
+	}
+
+	impl worker_runtime_api::WorkerApi<Block, AccountId, BlockNumber> for Runtime {
+		fn page_miner_order(account_id: AccountId, current: u64, size: u64, sort: u8) -> MinerOrderPage<AccountId, BlockNumber> {
+			Worker::page_miner_order(account_id, current, size, sort)
 		}
 	}
 

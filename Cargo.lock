@@ -3665,6 +3665,7 @@ dependencies = [
  "structopt",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
+ "worker-rpc",
 ]
 
 [[package]]
@@ -3703,6 +3704,7 @@ dependencies = [
  "storage-order-runtime-api",
  "substrate-wasm-builder",
  "worker",
+ "worker-runtime-api",
 ]
 
 [[package]]
@@ -8584,6 +8586,33 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "storage-order",
+]
+
+[[package]]
+name = "worker-rpc"
+version = "3.0.0"
+dependencies = [
+ "futures 0.3.15",
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "parity-scale-codec",
+ "sc-rpc",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-runtime",
+ "worker-runtime-api",
+]
+
+[[package]]
+name = "worker-runtime-api"
+version = "3.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "serde_json",
+ "sp-api",
+ "worker",
 ]
 
 [[package]]
