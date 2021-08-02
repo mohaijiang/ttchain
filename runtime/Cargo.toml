@@ -57,7 +57,8 @@ std = [
     'storage-order/std',
     'storage-order-runtime-api/std',
     'worker/std',
-    'worker-runtime-api/std'
+    'worker-runtime-api/std',
+    'primitives/std'
 ]
 [dependencies.codec]
 default-features = false
@@ -244,4 +245,10 @@ version = '3.0.0'
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.primitives]
+package="ttc-primitives"
+default-features = false
+path = '../primitives'
 version = '3.0.0'

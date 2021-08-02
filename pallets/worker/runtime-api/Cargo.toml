@@ -20,15 +20,16 @@ version = '2.0.0'
 [dev-dependencies]
 serde_json = "1.0.59"
 
-[dependencies.worker]
+[dependencies.primitives]
 default-features = false
-path = '../../worker'
+package="ttc-primitives"
+path = '../../../primitives'
 version = '3.0.0'
 
 [features]
 default = ["std"]
 std = [
     "sp-api/std",
-    "worker/std",
+    "primitives/std",
     "codec/std",
 ]

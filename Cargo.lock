@@ -3703,6 +3703,7 @@ dependencies = [
  "storage-order",
  "storage-order-runtime-api",
  "substrate-wasm-builder",
+ "ttc-primitives",
  "worker",
  "worker-runtime-api",
 ]
@@ -7102,6 +7103,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "ttc-primitives",
 ]
 
 [[package]]
@@ -7128,7 +7130,7 @@ dependencies = [
  "parity-scale-codec",
  "serde_json",
  "sp-api",
- "storage-order",
+ "ttc-primitives",
 ]
 
 [[package]]
@@ -7887,6 +7889,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 
 [[package]]
+name = "ttc-primitives"
+version = "3.0.0"
+dependencies = [
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-debug-derive",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "twox-hash"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8585,7 +8601,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "storage-order",
+ "ttc-primitives",
 ]
 
 [[package]]
@@ -8612,7 +8628,7 @@ dependencies = [
  "parity-scale-codec",
  "serde_json",
  "sp-api",
- "worker",
+ "ttc-primitives",
 ]
 
 [[package]]

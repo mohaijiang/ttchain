@@ -4,7 +4,7 @@
 
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
-pub use storage_order::OrderPage;
+pub use primitives::p_storage_order::OrderPage;
 use codec::Codec;
 
 sp_api::decl_runtime_apis! {
