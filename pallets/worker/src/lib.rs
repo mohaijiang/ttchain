@@ -17,6 +17,7 @@ use primitives::p_storage_order::StorageOrderInterface;
 use primitives::p_storage_order::StorageOrderStatus;
 use primitives::p_worker::*;
 
+type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -392,4 +393,15 @@ impl<T: Config> Pallet<T> {
 		list
 	}
 
+}
+
+impl<T: Config> WorkerInterface for Pallet<T> {
+	type AccountId = T::AccountId;
+	type BlockNumber = T::BlockNumber;
+	type Balance = BalanceOf<T>;
+
+	/// 获取订单矿工列表
+	fn order_miners(order_id: u64) -> Vec<Self::AccountId>{
+		MinerSetOfOrder::<T>::get(order_id)
+	}
 }

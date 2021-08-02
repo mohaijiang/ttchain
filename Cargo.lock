@@ -4293,6 +4293,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "ttc-primitives",
 ]
 
 [[package]]

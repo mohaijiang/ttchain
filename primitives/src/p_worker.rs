@@ -61,3 +61,12 @@ impl ReportInfo {
         }
     }
 }
+
+/// 支付接口
+pub trait WorkerInterface {
+    type AccountId;
+    type BlockNumber;
+    type Balance;
+    /// 获取订单矿工列表
+    fn order_miners(order_id: u64) -> Vec<Self::AccountId>;
+}

@@ -10,7 +10,9 @@ use frame_support::{traits::{Currency,ExistenceRequirement,ExistenceRequirement:
 use sp_runtime::{traits::AccountIdConversion};
 use frame_support::dispatch::DispatchResult;
 use frame_support::sp_runtime::traits::Convert;
-
+use primitives::p_payment::*;
+use primitives::p_storage_order::*;
+use primitives::p_worker::*;
 
 #[cfg(test)]
 mod mock;
@@ -46,6 +48,10 @@ pub mod pallet {
 		type NumberToBalance: Convert<u128,BalanceOf<Self>>;
 		/// 支付费用和持有余额的货币。
 		type Currency: Currency<Self::AccountId>;
+		/// 订单接口
+		type StorageOrderInterface: StorageOrderInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber>;
+		/// worker接口
+		type WorkerInterface:  WorkerInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber,Balance = BalanceOf<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -94,13 +100,28 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 
-			let generation  = 100 as u32;
+			// let generation  = 100 as u32;
 
 			//判断当前块高是否大于订单等待时长
 			let order_deadline_set = OrderDeadline::<T>::get(now).unwrap_or(Vec::<u64>::new());
 			for order_index in &order_deadline_set {
 
 				//TODO...校验文件状态 如果文件状态为完成，进行清算
+				let order_opt = T::StorageOrderInterface::get_storage_order(order_index);
+				//校验订单是否存在
+				if order_opt.is_none() {
+					continue;
+				}
+
+				let order_info = order_opt.unwrap();
+
+				// 校验订单状态
+				//校验文件状态 如果文件状态为取消状态则不能进行上报
+				if let StorageOrderStatus::Finished = &order_info.status {
+					// 订单状态完成，继续清算
+				}else {
+					continue;
+				}
 
 				//获取订单金额
 				match OrderPrice::<T>::get(order_index) {
@@ -135,7 +156,7 @@ pub mod pallet {
 
 
 						//获取订单矿工集合
-						let mut miners : Vec<T::AccountId> = Vec::<T::AccountId>::new();
+						let mut miners = T::WorkerInterface::order_miners(*order_index);
 						//截取前10个订单完成者，有权利分润
 						miners.truncate(T::NumberOfIncomeMiner::get());
 						// 计算实际完成者数量
@@ -196,60 +217,10 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://substrate.dev/docs/en/knowledgebase/runtime/origin
-			let who = ensure_signed(origin)?;
-
-			// Update storage.
-			<Something<T>>::put(something);
-
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored(something, who));
-			// Return a successful DispatchResultWithPostInfo
-			Ok(())
-		}
-
-		/// An example dispatchable that may throw a custom error.
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
-
-			// Read a value from storage.
-			match <Something<T>>::get() {
-				// Return an error if the value has not been set.
-				None => Err(Error::<T>::NoneValue)?,
-				Some(old) => {
-					// Increment the value read from storage; will error in the event of overflow.
-					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-					// Update the value in storage with the incremented result.
-					<Something<T>>::put(new);
-					Ok(())
-				},
-			}
-		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn donate(
-			origin : OriginFor<T>,
-			amount: BalanceOf<T>
-		) -> DispatchResult {
-			let donor = ensure_signed(origin)?;
-
-			let _ = T::Currency::transfer(&donor, &Self::account_id(), amount, ExistenceRequirement::AllowDeath);
-
-			Self::deposit_event(Event::DonationReceived(donor, amount, Self::pot()));
-			Ok(())
-		}
-
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn withdrawal2(
-			origin : OriginFor<T>,
-			amount: BalanceOf<T>
+		pub fn withdrawal(
+			origin : OriginFor<T>
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -260,7 +231,7 @@ pub mod pallet {
 				let amount :BalanceOf<T> = price_opt.unwrap();
 
 				if T::BalanceToNumber::convert(amount) > 0 {
-					&Self::withdrawal(&who,amount)?;
+					&Self::withdrawal_(&who,amount)?;
 					MinerPrice::<T>::remove(&who);
 					Self::deposit_event(Event::Withdrawal(who, amount, Self::pot()));
 				}
@@ -283,22 +254,11 @@ impl <T:Config> Pallet<T> {
 		T::Currency::free_balance(&Self::account_id())
 	}
 
-	fn withdrawal(account_id: &T::AccountId,amount: BalanceOf<T>) -> DispatchResult{
+	fn withdrawal_(account_id: &T::AccountId,amount: BalanceOf<T>) -> DispatchResult{
 		T::Currency::transfer(&Self::account_id(),account_id,amount, ExistenceRequirement::AllowDeath)
 	}
 }
 
-
-
-pub trait PaymentInterface {
-	type AccountId;
-	type BlockNumber;
-	type Balance;
-	/// 记录订单金额
-	fn pay_order(order_index: &u64, order_price: &Self::Balance,deadline: &Self::BlockNumber, account_id: &Self::AccountId) -> DispatchResult;
-	/// 订单取消退款
-	fn cancel_order(order_index: &u64, order_price: &u128,deadline: &Self::BlockNumber, account_id: &Self::AccountId);
-}
 
 impl<T: Config> PaymentInterface for Pallet<T> {
 	type AccountId = T::AccountId;

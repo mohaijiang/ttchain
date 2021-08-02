@@ -13,9 +13,8 @@ use frame_support::{
 use sp_runtime::traits::Convert;
 
 use primitives::p_storage_order::*;
+use primitives::p_payment::*;
 
-
-use payment::PaymentInterface;
 
 #[frame_support::pallet]
 pub mod pallet {

@@ -41,6 +41,7 @@ std = [
     'frame-benchmarking/std',
     'sp-runtime/std',
     'sp-std/std',
+    'primitives/std',
 ]
 try-runtime = ['frame-support/try-runtime']
 [dependencies.codec]
@@ -73,4 +74,11 @@ version = '3.0.0'
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
+version = '3.0.0'
+
+
+[dependencies.primitives]
+default-features = false
+package="ttc-primitives"
+path = '../../primitives'
 version = '3.0.0'

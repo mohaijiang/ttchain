@@ -291,6 +291,8 @@ impl payment::Config for Runtime {
 	type BalanceToNumber = ConvertInto;
 	type NumberToBalance = ConvertInto;
 	type Currency = Balances;
+	type StorageOrderInterface = StorageOrder;
+	type WorkerInterface = Worker;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

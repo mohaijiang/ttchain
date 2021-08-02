@@ -7,6 +7,7 @@ use sp_runtime::{
 pub mod constants;
 pub mod p_storage_order;
 pub mod p_worker;
+pub mod p_payment;
 
 /// An index to a block.
 pub type BlockNumber = u32;
