@@ -56,6 +56,9 @@ std = [
     'sp-version/std',
     'storage-order/std',
     'storage-order-runtime-api/std',
+    'worker/std',
+    'worker-runtime-api/std',
+    'primitives/std',
     'payment/std'
 ]
 [dependencies.codec]
@@ -161,6 +164,11 @@ default-features = false
 path = '../pallets/worker'
 version = '3.0.0'
 
+[dependencies.worker-runtime-api]
+default-features = false
+path = '../pallets/worker/runtime-api'
+version = '3.0.0'
+
 [dependencies.pallet-timestamp]
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
@@ -243,4 +251,10 @@ version = '3.0.0'
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.primitives]
+package="ttc-primitives"
+default-features = false
+path = '../primitives'
 version = '3.0.0'

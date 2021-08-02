@@ -9,15 +9,13 @@ use sp_std::vec::Vec;
 use frame_support::{
 	traits::{Currency},
 	ensure,
-	codec::{Decode, Encode},
 	dispatch::DispatchResult, pallet_prelude::*
 };
 use sp_runtime::traits::{Convert, Zero};
 
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-use storage_order::StorageOrderInterface;
-use storage_order::StorageOrderStatus;
+use primitives::p_storage_order::StorageOrderInterface;
+use primitives::p_storage_order::StorageOrderStatus;
+use primitives::p_worker::*;
 
 
 #[frame_support::pallet]
@@ -49,28 +47,9 @@ pub mod pallet {
 
 		/// 订单接口
 		type StorageOrderInterface: StorageOrderInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber>;
-	}
 
-
-	#[derive(Encode, Decode, RuntimeDebug,Clone, Eq, PartialEq, Default)]
-	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-	pub struct ReportInfo {
-		/// 订单索引
-		pub orders: Vec<u64>,
-		/// 总存储量
-		pub total_storage: u64,
-		/// 已用存储
-		pub used_storage: u64
-	}
-
-	impl ReportInfo {
-		fn new (orders: Vec<u64>, total_storage: u64, used_storage: u64) -> Self {
-			ReportInfo {
-				orders,
-				total_storage,
-				used_storage
-			}
-		}
+		/// 平均收益限额
+		type AverageIncomeLimit: Get<u8>;
 	}
 
 	/// 矿工个数
@@ -111,7 +90,7 @@ pub mod pallet {
 	/// 矿工订单数据
 	#[pallet::storage]
 	#[pallet::getter(fn miner_order)]
-	pub(super) type MinerOrder<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Vec<u64>, ValueQuery>;
+	pub(super) type MinerOrderSet<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Vec<u64>, ValueQuery>;
 
 	/// 订单对应矿工集合
 	#[pallet::storage]
@@ -123,6 +102,10 @@ pub mod pallet {
 	#[pallet::getter(fn report)]
 	pub(super) type Report<T: Config> = StorageDoubleMap<_, Twox64Concat, T::BlockNumber, Twox64Concat, T::AccountId, ReportInfo, OptionQuery>;
 
+	/// 领取收益标记位
+	#[pallet::storage]
+	#[pallet::getter(fn miner_order_income)]
+	pub(super) type MinerOrderIncome<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, bool, ValueQuery>;
 
 
 	// Pallets use events to inform users when important changes are made.
@@ -224,17 +207,16 @@ pub mod pallet {
 				Err(Error::<T>::OrderDoesNotExist)?
 			}
 			//判断订单是否已经提交
-			let mut miners = MinerSetOfOrder::<T>::get(&order_index);
+			let miners = MinerSetOfOrder::<T>::get(&order_index);
 			ensure!(!miners.contains(&miner), Error::<T>::AlreadyCallOrderFinish);
-			//添加订单信息
-			miners.push(miner.clone());
-			MinerSetOfOrder::<T>::insert(&order_index,miners);
+			//添加订单矿工信息
+			Self::add_miner_set_of_order(&order_index,miner.clone());
 			//添加订单副本
 			T::StorageOrderInterface::add_order_replication(&order_index);
 			//存入矿工订单数据
-			let mut orders = MinerOrder::<T>::get(&miner);
+			let mut orders = MinerOrderSet::<T>::get(&miner);
 			orders.push(order_index);
-			MinerOrder::<T>::insert(&miner,orders);
+			MinerOrderSet::<T>::insert(&miner,orders);
 			//发送订单完成事件
 			Self::deposit_event(Event::ProofOfReplicationFinish(order_index));
 			Ok(())
@@ -254,37 +236,32 @@ pub mod pallet {
 			//计算当前阶段
 			let block_number = block_number - (block_number % T::ReportInterval::get());
 			//通过矿工查询订单列表
-			let miner_orders = MinerOrder::<T>::get(&who);
+			let miner_orders = MinerOrderSet::<T>::get(&who);
 			//判断订单列表是否为空
 			if miner_orders.is_empty(){
 				//遍历时空证明参数订单
 				for index in &orders {
-					//添加订单矿工数据
-					let mut miners = MinerSetOfOrder::<T>::get(index);
-					//添加订单信息
-					miners.push(who.clone());
-					MinerSetOfOrder::<T>::insert(index,miners);
+					//添加订单矿工信息
+					Self::add_miner_set_of_order(index,who.clone());
 					//添加订单副本
 					T::StorageOrderInterface::add_order_replication(index);
 				}
 				//添加入矿工订单中
-				MinerOrder::<T>::insert(&who,orders.clone());
+				MinerOrderSet::<T>::insert(&who,orders.clone());
 			}else{
 				//订单过滤
 				let miner_orders = miner_orders.into_iter().filter(|index| {
 					let result = orders.contains(index);
 					if !result {
 						//在订单矿工数据中删除该矿工
-						let mut miners = MinerSetOfOrder::<T>::get(index);
-						miners.retain(|x| x != &who);
-						MinerSetOfOrder::<T>::insert(index,miners);
+						Self::sub_miner_set_of_order(index,&who);
 						//减掉订单信息副本
 						T::StorageOrderInterface::sub_order_replication(index);
 					}
 					result
 				}).collect::<Vec<u64>>();
 				//修改矿工订单列表
-				MinerOrder::<T>::insert(&who,miner_orders);
+				MinerOrderSet::<T>::insert(&who,miner_orders);
 			}
 			//更新存储空间数据
 			Self::update_storage(&who,total_storage,used_storage);
@@ -323,18 +300,16 @@ impl<T: Config> Pallet<T> {
 			//如果不存在
 			if !result {
 				//获得矿工订单列表
-				let orders = MinerOrder::<T>::get(miner);
+				let orders = MinerOrderSet::<T>::get(miner);
 				//删除订单矿工信息
-				orders.into_iter().for_each(|index| {
+				orders.into_iter().for_each(|order_index| {
 					//在订单矿工数据中删除该矿工
-					let mut miners = MinerSetOfOrder::<T>::get(index);
-					miners.retain(|x| x != miner);
-					MinerSetOfOrder::<T>::insert(&index,miners);
+					Self::sub_miner_set_of_order(&order_index,miner);
 					//减掉订单信息副本
-					T::StorageOrderInterface::sub_order_replication(&index);
+					T::StorageOrderInterface::sub_order_replication(&order_index);
 				});
 				//删除矿工订单信息
-				MinerOrder::<T>::remove(miner);
+				MinerOrderSet::<T>::remove(miner);
 			}
 			result
 		}).collect::<Vec<T::AccountId>>();
@@ -346,6 +321,75 @@ impl<T: Config> Pallet<T> {
 		//更新总使存储
 		let used_storage = MinerUsedStorage::<T>::iter_values().sum::<u64>();
 		UsedStorage::<T>::put(used_storage);
+	}
+
+	///添加订单矿工信息
+	fn add_miner_set_of_order(order_index: &u64, miner: T::AccountId){
+		let mut miners = MinerSetOfOrder::<T>::get(order_index);
+		if miners.contains(&miner) {
+			return;
+		}
+		//判断当前矿工是否在收益列表 如果是则进行修改
+		if miners.len() < (T::AverageIncomeLimit::get() - 1)  as usize {
+			MinerOrderIncome::<T>::insert(&miner,order_index,true);
+		}
+		//添加订单信息
+		miners.push(miner.clone());
+		MinerSetOfOrder::<T>::insert(order_index,miners);
+
+	}
+
+	///删除矿工订单信息
+	fn sub_miner_set_of_order(order_index: &u64, miner: &T::AccountId){
+		let mut miners = MinerSetOfOrder::<T>::get(order_index);
+		//查询当前订单是否在收益列表中 如果在则将其去除并将第11位存入收益列表
+		if MinerOrderIncome::<T>::get(miner,order_index) {
+			let i = T::AverageIncomeLimit::get() as usize;
+			if let Some(other_miner) = miners.get(i) {
+				MinerOrderIncome::<T>::insert(other_miner,order_index,true);
+			}
+			//将删除的矿工在收益中删除
+			MinerOrderIncome::<T>::insert(miner,order_index,false);
+		}
+		//在矿工列表中删除
+		miners.retain(|x| x != miner);
+		MinerSetOfOrder::<T>::insert(order_index,miners);
+	}
+
+	/// 分页查询矿工订单
+	pub fn page_miner_order(account_id: T::AccountId, current: u64, size: u64, sort: u8) -> MinerOrderPage<T::AccountId,T::BlockNumber> {
+		let orders = MinerOrderSet::<T>::get(&account_id);
+		let total = orders.len() as u64;
+		let current = if current == 0 { 1 } else { current };
+		let list =  if sort == 0 {
+			let begin = (current - 1) * size;
+			let end = if current * size > total { total } else { current * size };
+			Self::get_miner_order_list(&account_id, orders, begin, end)
+		} else {
+			let begin = if total >  current * size { total - current * size } else { 0 };
+			let end = if total > ((current - 1) * size +1 ) { total - ((current - 1) * size +1 ) } else { 0 };
+			let mut list = Self::get_miner_order_list(&account_id, orders, begin, end);
+			list.reverse();
+			list
+		};
+		MinerOrderPage::new(list, total)
+	}
+
+	/// 查询订单列表
+	fn get_miner_order_list(account_id: &T::AccountId, orders: Vec<u64>,begin: u64,end: u64) -> Vec<MinerOrder<T::AccountId,T::BlockNumber>> {
+		let mut list = Vec::<MinerOrder<T::AccountId,T::BlockNumber>>::new();
+		if let Some(sub_orders) = orders.get(begin as usize..end as usize){
+			for index in sub_orders {
+				match T::StorageOrderInterface::get_storage_order(index){
+					Some(t) => {
+						let income_flag = MinerOrderIncome::<T>::get(account_id,index);
+						list.push(MinerOrder::new(t,income_flag));
+					},
+					None => ()
+				}
+			}
+		}
+		list
 	}
 
 }

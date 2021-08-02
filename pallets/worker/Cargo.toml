@@ -41,7 +41,7 @@ std = [
     'frame-benchmarking/std',
     'sp-std/std',
     'sp-runtime/std',
-    'storage-order/std'
+    'primitives/std'
 ]
 try-runtime = ['frame-support/try-runtime']
 [dependencies.codec]
@@ -81,9 +81,10 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
-[dependencies.storage-order]
+[dependencies.primitives]
 default-features = false
-path = '../storage-order'
+package="ttc-primitives"
+path = '../../primitives'
 version = '3.0.0'
 
 [dependencies.serde]
