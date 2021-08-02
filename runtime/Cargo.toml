@@ -29,43 +29,41 @@ runtime-benchmarks = [
     'storage-order/runtime-benchmarks',
 ]
 std = [
-    'codec/std',
-    'frame-executive/std',
-    'frame-support/std',
-    'frame-system-rpc-runtime-api/std',
-    'frame-system/std',
-    'pallet-babe/std',
-    'pallet-balances/std',
-    'pallet-grandpa/std',
-    'pallet-randomness-collective-flip/std',
-    'pallet-sudo/std',
-    'pallet-template/std',
-    'pallet-timestamp/std',
-    'pallet-transaction-payment-rpc-runtime-api/std',
-    'pallet-transaction-payment/std',
-    'sp-api/std',
-    'sp-block-builder/std',
-    'sp-consensus-babe/std',
-    'sp-core/std',
-    'sp-inherents/std',
-    'sp-offchain/std',
-    'sp-runtime/std',
-    'sp-session/std',
-    'sp-std/std',
-    'sp-transaction-pool/std',
-    'sp-version/std',
-    'storage-order/std',
-    'storage-order-runtime-api/std',
+    "sp-authority-discovery/std",
+    "pallet-authority-discovery/std",
+    "pallet-authorship/std",
+    "sp-consensus-babe/std",
+    "pallet-babe/std",
+    "pallet-balances/std",
+    "sp-block-builder/std",
+    "codec/std",
+    "pallet-collective/std",
+    "frame-executive/std",
+    "pallet-grandpa/std",
+    "sp-inherents/std",
+    "sp-offchain/std",
+    "sp-core/std",
+    "pallet-randomness-collective-flip/std",
+    "sp-std/std",
+    "pallet-session/std",
+    "sp-api/std",
+    "sp-runtime/std",
     "sp-staking/std",
     "pallet-staking/std",
-    "pallet-session/std",
     "sp-session/std",
-    "sp-npos-elections/std",
-    "pallet-authority-discovery/std",
-    "sp-authority-discovery/std",
-    "pallet-authorship/std",
+    "pallet-sudo/std",
+    "frame-support/std",
+    "frame-benchmarking/std",
+    "frame-system-rpc-runtime-api/std",
+    "frame-system/std",
     "pallet-election-provider-multi-phase/std",
-
+    "pallet-timestamp/std",
+    "pallet-transaction-payment-rpc-runtime-api/std",
+    "pallet-transaction-payment/std",
+    "sp-transaction-pool/std",
+    "sp-version/std",
+    "sp-npos-elections/std",
+    "pallet-offences/std",
 
 ]
 [dependencies.codec]
@@ -310,6 +308,12 @@ tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-authorship]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-offences]
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'

@@ -3719,6 +3719,7 @@ dependencies = [
  "pallet-collective",
  "pallet-election-provider-multi-phase",
  "pallet-grandpa",
+ "pallet-offences",
  "pallet-randomness-collective-flip",
  "pallet-session",
  "pallet-staking",
@@ -4097,6 +4098,22 @@ dependencies = [
  "sp-core",
  "sp-rpc",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-offences"
+version = "3.0.0"
+source = "git+https://gitee.com/mohaijiang/substrate.git?tag=monthly-2021-07#83808aa815a9fbc528b76cd25ae1dec57e269771"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "serde",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
 ]
 
 [[package]]
