@@ -5,6 +5,8 @@
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
 
 pub use pallet::*;
+use frame_support::{traits::{Currency,ExistenceRequirement,ExistenceRequirement::{AllowDeath, KeepAlive}},PalletId};
+use sp_runtime::{traits::AccountIdConversion};
 
 #[cfg(test)]
 mod mock;
@@ -15,16 +17,26 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
+	use frame_support::traits::Currency;
+	use super::*;
+
+
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		/// 支付费用和持有余额的货币。
+		type Currency: Currency<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -48,6 +60,10 @@ pub mod pallet {
 		/// Event documentation should end with an array that provides descriptive names for event
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
+
+		DonationReceived(T::AccountId, BalanceOf<T>, BalanceOf<T>),
+
+		Withdrawal(T::AccountId, BalanceOf<T>, BalanceOf<T>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -100,5 +116,48 @@ pub mod pallet {
 				},
 			}
 		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn donate(
+			origin : OriginFor<T>,
+			amount: BalanceOf<T>
+		) -> DispatchResult {
+			let donor = ensure_signed(origin)?;
+
+			let _ = T::Currency::transfer(&donor, &Self::account_id(), amount, ExistenceRequirement::AllowDeath);
+
+			Self::deposit_event(Event::DonationReceived(donor, amount, Self::pot()));
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn withdrawal2(
+			origin : OriginFor<T>,
+			amount: BalanceOf<T>
+		) -> DispatchResult {
+			let donor = ensure_signed(origin)?;
+
+			&Self::withdrawal(&donor,amount);
+			Self::deposit_event(Event::Withdrawal(donor, amount, Self::pot()));
+			Ok(())
+		}
+	}
+}
+
+const PALLET_ID: PalletId = PalletId(*b"Charity!");
+
+impl <T:Config> Pallet<T> {
+	/// The account ID that holds the Charity's funds
+	pub fn account_id() -> T::AccountId {
+		PALLET_ID.into_account()
+	}
+
+	/// The Charity's balance
+	fn pot() -> BalanceOf<T> {
+		T::Currency::free_balance(&Self::account_id())
+	}
+
+	fn withdrawal(account_id: &T::AccountId,amount: BalanceOf<T>) {
+		T::Currency::transfer(&Self::account_id(),account_id,amount, ExistenceRequirement::AllowDeath);
 	}
 }

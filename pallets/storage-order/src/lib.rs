@@ -16,6 +16,7 @@ use sp_runtime::traits::Convert;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
+use payment::PaymentInterface;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -42,6 +43,9 @@ pub mod pallet {
 
 		/// 金额转换数字
 		type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
+
+		/// 订单接口
+		type PaymentInterface: PaymentInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber,Balance = BalanceOf<Self>>;
 	}
 
 
@@ -189,6 +193,8 @@ pub mod pallet {
 							if let StorageOrderStatus::Pending = order_info.status {
 								order_info.status = StorageOrderStatus::Canceled;
 								OrderInfo::<T>::insert(order_index,order_info.clone());
+								// 退款
+								T::PaymentInterface::cancel_order(&order_index,&order_info.price,&order_info.storage_deadline,&order_info.account_id);
 								//发送订单取消时间事件
 								Self::deposit_event(Event::OrderCanceled(order_index.clone() , order_info.cid));
 							}
@@ -253,7 +259,7 @@ pub mod pallet {
 				cid.clone(),
 				who.clone(),
 				file_name.clone(),
-				T::BalanceToNumber::convert(price),
+				T::BalanceToNumber::convert(price.clone()),
 				storage_deadline,
 				size,
 				block_number.clone());
@@ -271,6 +277,8 @@ pub mod pallet {
 			let mut order_set = OrderSetOfBlock::<T>::get(&block_number).unwrap_or(Vec::<u64>::new());
 			order_set.push(order_index);
 			OrderSetOfBlock::<T>::insert(&block_number,order_set);
+			// 支付模块记录订单金额
+			T::PaymentInterface::pay_order(&order_index,&price,&order.storage_deadline,&who)?;
 			//发送订单创建事件
 			Self::deposit_event(Event::OrderCreated(order.index,order.cid,order.account_id,order.file_name,
 													order.storage_deadline,order.size));

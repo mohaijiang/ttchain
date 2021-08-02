@@ -3688,6 +3688,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
+ "payment",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",
@@ -4275,6 +4276,21 @@ name = "paste"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf547ad0c65e31259204bd90935776d1c693cec2f4ff7abb7a1bbbd40dfe58"
+
+[[package]]
+name = "payment"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
 
 [[package]]
 name = "pbkdf2"
@@ -7094,6 +7110,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "payment",
  "serde",
  "serde_json",
  "sp-core",

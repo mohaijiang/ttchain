@@ -48,6 +48,8 @@ use storage_order::OrderPage;
 
 /// 工作者模块
 pub use worker;
+/// 支付模块
+pub use payment;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -277,6 +279,7 @@ impl pallet_sudo::Config for Runtime {
 /// Configure the pallet-template in pallets/template.
 impl pallet_template::Config for Runtime {
 	type Event = Event;
+	type Currency = Balances;
 }
 
 parameter_types! {
@@ -289,6 +292,7 @@ impl storage_order::Config for Runtime {
 	type Currency = Balances;
 	type OrderWaitingTime = OrderWaitingTime;
 	type BalanceToNumber = ConvertInto;
+	type PaymentInterface = Payment;
 }
 
 parameter_types! {
@@ -304,6 +308,18 @@ impl worker::Config for Runtime {
 	type StorageOrderInterface = StorageOrder;
 }
 
+parameter_types! {
+	pub const NumberOfIncomeMiner: usize = 10;
+}
+
+/// Configure the payment in pallets/payment.
+impl payment::Config for Runtime {
+	type Event = Event;
+	type NumberOfIncomeMiner = NumberOfIncomeMiner;
+	type BalanceToNumber = ConvertInto;
+	type NumberToBalance = ConvertInto;
+	type Currency = Balances;
+}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -324,6 +340,7 @@ construct_runtime!(
 		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
 		StorageOrder: storage_order::{Pallet, Call, Storage, Event<T>},
 		Worker: worker::{Pallet, Call, Storage, Event<T>},
+		Payment: payment::{Pallet, Call, Storage, Event<T>},
 	}
 );
 

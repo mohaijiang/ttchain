@@ -55,7 +55,8 @@ std = [
     'sp-transaction-pool/std',
     'sp-version/std',
     'storage-order/std',
-    'storage-order-runtime-api/std'
+    'storage-order-runtime-api/std',
+    'payment/std'
 ]
 [dependencies.codec]
 default-features = false
@@ -138,6 +139,11 @@ version = '3.0.0'
 [dependencies.pallet-template]
 default-features = false
 path = '../pallets/template'
+version = '3.0.0'
+
+[dependencies.payment]
+default-features = false
+path = '../pallets/payment'
 version = '3.0.0'
 
 [dependencies.storage-order]
