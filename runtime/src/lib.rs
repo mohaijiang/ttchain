@@ -251,6 +251,12 @@ impl frame_system::Config for Runtime {
 	type OnSetCode = ();
 }
 
+impl pallet_utility::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
+}
+
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 // impl pallet_aura::Config for Runtime {
@@ -602,6 +608,7 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		Utility: pallet_utility::{Pallet, Call, Event},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		//Aura: pallet_aura::{Pallet, Config<T>},
