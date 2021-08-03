@@ -222,7 +222,7 @@ impl<T: Config> Pallet<T> {
 			Self::get_order_list(&account_id, begin, end)
 		} else {
 			let begin = if total >  current * size { total - current * size } else { 0 };
-			let end = if total > ((current - 1) * size +1 ) { total - ((current - 1) * size +1 ) } else { 0 };
+			let end = if total > (current - 1) * size { total - (current - 1) * size } else { 0 };
 			let mut list = Self::get_order_list(&account_id,begin, end);
 			list.reverse();
 			list
