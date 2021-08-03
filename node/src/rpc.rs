@@ -23,7 +23,6 @@ use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sc_rpc::SubscriptionTaskExecutor;
 use sp_transaction_pool::TransactionPool;
-use sc_client_api::AuxStore;
 use node_template_runtime::{opaque::Block, AccountId, Balance, Index, BlockNumber,Hash};
 
 
@@ -105,14 +104,13 @@ pub fn create_full<C, P ,SC, B>(
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
 	use storage_order_rpc::{StorageOrderApi , StorageOrder};
-	use pallet_contracts_rpc::{Contracts, ContractsApi};
-	use pallet_mmr_rpc::{MmrApi, Mmr};
 
 	let mut io = jsonrpc_core::IoHandler::default();
 	let FullDeps {
 		client,
 		pool,
-		select_chain, chain_spec,
+		select_chain,
+		chain_spec,
 		deny_unsafe,
 		babe,
 		grandpa,

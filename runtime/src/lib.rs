@@ -17,10 +17,9 @@ use sp_runtime::{
 };
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, AccountIdLookup, Verify, IdentifyAccount, NumberFor, ConvertInto,
-	OpaqueKeys,IdentityLookup,Saturating,Convert
+	OpaqueKeys,
 };
 use sp_api::impl_runtime_apis;
-//use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_babe;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_grandpa::fg_primitives;
@@ -53,12 +52,9 @@ pub use pallet_staking::StakerStatus;
 use frame_election_provider_support::onchain;
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureOneOf, EnsureRoot,
+	EnsureRoot,
 };
-use pallet_election_provider_multi_phase::FallbackStrategy;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-
-// use im_online::sr25519::AuthorityId as ImOnlineId;
 
 
 /// Import the template pallet.
@@ -261,7 +257,6 @@ impl pallet_randomness_collective_flip::Config for Runtime {}
 // 	type AuthorityId = AuraId;
 // }
 
-///babe
 pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 10 * MINUTES;
 pub const EPOCH_DURATION_IN_SLOTS: u64 = {
 	const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
@@ -279,6 +274,7 @@ parameter_types! {
     pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS;
     pub const ExpectedBlockTime: u64 = MILLISECS_PER_BLOCK;
 }
+
 impl pallet_babe::Config for Runtime {
 	type EpochDuration = EpochDuration;
 	type ExpectedBlockTime = ExpectedBlockTime;
@@ -306,7 +302,7 @@ impl pallet_grandpa::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
 
-	type KeyOwnerProofSystem = ();
+	type KeyOwnerProofSystem = Historical;
 
 	type KeyOwnerProof =
 		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
@@ -330,7 +326,7 @@ impl pallet_timestamp::Config for Runtime {
 	type Moment = u64;
 	type OnTimestampSet = Babe;
 	type MinimumPeriod = MinimumPeriod;
-	type WeightInfo = ();
+	type WeightInfo = pallet_timestamp::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -373,23 +369,41 @@ impl pallet_template::Config for Runtime {
 	type Event = Event;
 }
 
-///authorship
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
 }
 
+parameter_types! {
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+		RuntimeBlockWeights::get().max_block;
+	pub const MaxScheduledPerBlock: u32 = 50;
+}
+
+/// scheduler Runtime  config
+impl pallet_scheduler::Config for Runtime {
+	type Event = Event;
+	type Origin = Origin;
+	type PalletsOrigin = OriginCaller;
+	type Call = Call;
+	type MaximumWeight = MaximumSchedulerWeight;
+	type ScheduleOrigin = EnsureRoot<AccountId>;
+	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+	type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
+}
+
+/// authorship Runtime config
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
 	type UncleGenerations = UncleGenerations;
 	type FilterUncle = ();
-	type EventHandler = (Staking);
+	type EventHandler = Staking;
 }
 
-///session
 parameter_types! {
 	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
 }
 
+///session Runtime config
 impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
@@ -419,7 +433,7 @@ pallet_staking_reward_curve::build! {
 	);
 }
 
-///staking
+
 parameter_types! {
 	/// We prioritize im-online heartbeats over election solution submission.
 	pub const StakingUnsignedPriority: TransactionPriority = TransactionPriority::max_value() / 2;
@@ -431,6 +445,7 @@ impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
 	type Extrinsic = UncheckedExtrinsic;
 	type OverarchingCall = Call;
 }
+
 parameter_types! {
 	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
 	pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
@@ -440,7 +455,7 @@ parameter_types! {
 	pub OffchainRepeat: BlockNumber = 5;
 }
 
-
+/// staking Runtime config
 impl pallet_staking::Config for Runtime {
 	const MAX_NOMINATIONS: u32 = 30;
 	//质押余额
@@ -503,7 +518,8 @@ parameter_types! {
 	pub const SignedDepositByte: Balance = 1 * CENTS;
 
 	// fallback: no on-chain fallback.
-	pub const Fallback: FallbackStrategy = FallbackStrategy::Nothing;
+	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
+		pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
 
 	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
 
@@ -533,7 +549,7 @@ sp_npos_elections::generate_solution_type!(
 pub const MAX_NOMINATIONS: u32 =
 	<NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
 
-
+///election_provider_multi_phase  Runtime config
 impl pallet_election_provider_multi_phase::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -562,15 +578,15 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type BenchmarkingConfig = ();
 }
 
-///pallet authority discovery  Runtime config
+///authority discovery  Runtime config
 impl pallet_authority_discovery::Config for Runtime {}
 
 
-/// storage order Runtime config
 parameter_types! {
 	pub const OrderWaitingTime: BlockNumber = 30 * MINUTES;
 }
 
+/// storage order Runtime config
 impl storage_order::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -603,6 +619,8 @@ construct_runtime!(
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
 		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config},
 		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
+
 	}
 );
 

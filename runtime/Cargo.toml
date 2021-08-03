@@ -64,7 +64,7 @@ std = [
     "sp-version/std",
     "sp-npos-elections/std",
     "pallet-offences/std",
-
+    "pallet-scheduler/std",
 ]
 [dependencies.codec]
 default-features = false
@@ -314,6 +314,12 @@ tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-offences]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-scheduler]
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
