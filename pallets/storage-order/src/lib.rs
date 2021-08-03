@@ -190,7 +190,7 @@ pub mod pallet {
 			T::PaymentInterface::pay_order(&order_index,&price,&order.storage_deadline,&who)?;
 			//发送订单创建事件
 			Self::deposit_event(Event::OrderCreated(order.index,order.cid,order.account_id,order.file_name,
-													order.storage_deadline,order.size));
+													order.storage_deadline,order.file_size));
 			// Return a successful DispatchResultWithPostInfo
 			Ok(())
 		}

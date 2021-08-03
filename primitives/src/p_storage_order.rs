@@ -38,7 +38,7 @@ pub struct StorageOrder<AccountId, BlockNumber> {
     /// 存储期限
     pub storage_deadline: BlockNumber,
     /// 文件大小
-    pub size: u32,
+    pub file_size: u32,
     /// 块高
     pub block_number: BlockNumber,
     /// 订单状态
@@ -50,7 +50,7 @@ pub struct StorageOrder<AccountId, BlockNumber> {
 impl<AccountId, BlockNumber> StorageOrder<AccountId, BlockNumber> {
 
     pub fn new (index: u64, cid: Vec<u8>, account_id: AccountId, file_name: Vec<u8>,
-            price: u128, storage_deadline: BlockNumber, size: u32, block_number: BlockNumber) -> Self {
+            price: u128, storage_deadline: BlockNumber, file_size: u32, block_number: BlockNumber) -> Self {
         StorageOrder {
             index,
             cid,
@@ -58,7 +58,7 @@ impl<AccountId, BlockNumber> StorageOrder<AccountId, BlockNumber> {
             file_name,
             price,
             storage_deadline,
-            size,
+            file_size,
             block_number,
             status: StorageOrderStatus::Pending,
             replication: 0,
