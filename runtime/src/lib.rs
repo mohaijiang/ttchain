@@ -253,6 +253,7 @@ impl pallet_template::Config for Runtime {
 
 parameter_types! {
 	pub const OrderWaitingTime: BlockNumber = 30 * MINUTES;
+	pub const PerByteDayPrice: u64 = 10;
 }
 
 /// storage order Runtime config
@@ -260,7 +261,9 @@ impl storage_order::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type OrderWaitingTime = OrderWaitingTime;
+	type PerByteDayPrice = PerByteDayPrice;
 	type BalanceToNumber = ConvertInto;
+	type BlockNumberToNumber = ConvertInto;
 	type PaymentInterface = Payment;
 }
 

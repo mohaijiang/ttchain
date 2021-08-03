@@ -42,6 +42,7 @@ std = [
     'sp-runtime/std',
     'sp-std/std',
     'primitives/std',
+    "log/std",
 ]
 try-runtime = ['frame-support/try-runtime']
 [dependencies.codec]
@@ -82,3 +83,6 @@ default-features = false
 package="ttc-primitives"
 path = '../../primitives'
 version = '3.0.0'
+
+[dependencies]
+log = { version = "0.4.14", default-features = false }

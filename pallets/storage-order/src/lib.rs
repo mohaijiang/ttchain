@@ -35,12 +35,16 @@ pub mod pallet {
 
 		/// 订单等待时间
 		type OrderWaitingTime: Get<Self::BlockNumber>;
+		// 每byte 每天的价格
+		type PerByteDayPrice: Get<u64>;
 
 		/// 支付费用和持有余额的货币。
 		type Currency: Currency<Self::AccountId>;
 
 		/// 金额转换数字
 		type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
+		// 区块高度转数字
+		type BlockNumberToNumber: Convert<Self::BlockNumber,u128>;
 
 		/// 订单接口
 		type PaymentInterface: PaymentInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber,Balance = BalanceOf<Self>>;
@@ -134,6 +138,8 @@ pub mod pallet {
 		AlreadyCallOrderFinish,
 		/// 订单不存在
 		OrderDoesNotExist,
+		/// 订单价格错误
+		OrderPriceError,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -172,6 +178,14 @@ pub mod pallet {
 				storage_deadline,
 				size,
 				block_number.clone());
+			let per_day_block = primitives::constants::time::DAYS as u128;
+			let per_byte_day_price = T::PerByteDayPrice::get() as u128;
+			let size_u128 = size as u128;
+			let duration_u128 = T::BlockNumberToNumber::convert(duration);
+			let price_u128 = T::BalanceToNumber::convert(price);
+			ensure!( (size_u128 * duration_u128  * per_byte_day_price / per_day_block )  ==  price_u128, Error::<T>::OrderPriceError);
+			// 支付模块记录订单金额
+			T::PaymentInterface::pay_order(&order_index,&price,&order.storage_deadline,&who)?;
 			//存入区块数据
 			OrderInfo::<T>::insert(&order_index, order.clone());
 			//获得用户索引个数
@@ -186,8 +200,6 @@ pub mod pallet {
 			let mut order_set = OrderSetOfBlock::<T>::get(&block_number).unwrap_or(Vec::<u64>::new());
 			order_set.push(order_index);
 			OrderSetOfBlock::<T>::insert(&block_number,order_set);
-			// 支付模块记录订单金额
-			T::PaymentInterface::pay_order(&order_index,&price,&order.storage_deadline,&who)?;
 			//发送订单创建事件
 			Self::deposit_event(Event::OrderCreated(order.index,order.cid,order.account_id,order.file_name,
 													order.storage_deadline,order.file_size));

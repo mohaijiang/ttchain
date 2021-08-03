@@ -23,7 +23,20 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+pub(crate) const LOG_TARGET: &'static str = "ttchain::payment";
+
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+// syntactic sugar for logging.
+#[macro_export]
+macro_rules! log {
+	($level:tt, $patter:expr $(, $values:expr)* $(,)?) => {
+		log::$level!(
+			target: crate::LOG_TARGET,
+			concat!("[{:?}] 💸 ", $patter), <frame_system::Pallet<T>>::block_number() $(, $values)*
+		)
+	};
+}
 
 
 #[frame_support::pallet]
@@ -91,8 +104,10 @@ pub mod pallet {
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
 
-		DonationReceived(T::AccountId, BalanceOf<T>, BalanceOf<T>),
+		/// 订单清算
+		ClearOrder(u64),
 
+		/// 领取收益
 		Withdrawal(T::AccountId, BalanceOf<T>, BalanceOf<T>),
 	}
 
@@ -105,7 +120,8 @@ pub mod pallet {
 			//判断当前块高是否大于订单等待时长
 			let order_deadline_set = OrderDeadline::<T>::get(now).unwrap_or(Vec::<u64>::new());
 			for order_index in &order_deadline_set {
-
+				log!(info, "清算订单 {:?}",order_index);
+				Self::deposit_event(Event::ClearOrder(*order_index));
 				//TODO...校验文件状态 如果文件状态为完成，进行清算
 				let order_opt = T::StorageOrderInterface::get_storage_order(order_index);
 				//校验订单是否存在
@@ -127,7 +143,7 @@ pub mod pallet {
 				match OrderPrice::<T>::get(order_index) {
 					Some(price) => {
 
-						/// 世代订单应发放金额逻辑，备用
+						// 世代订单应发放金额逻辑，备用
 						// // 订单创建区块
 						// let order_create_block_number = 0 as u128;
 						// // 订单存储时长
@@ -161,8 +177,17 @@ pub mod pallet {
 						miners.truncate(T::NumberOfIncomeMiner::get());
 						// 计算实际完成者数量
 						let workers = miners.len();
+
+						if workers == 0 {
+							// 订单无完成者,不进行清算。
+							// 未定时上报时空证明，导致worker模块踢出此订单矿工权利，使订单清算时，不能找到收益者
+							// TODO... 质押收益处理需要重新考虑逻辑
+							continue;
+						}
+
 						//总订单金额u128
 						let price_u128 = T::BalanceToNumber::convert(price.clone());
+
 						// 计算每人可分配金额
 						let per_worker_income = price_u128/(workers as u128);
  						// 矿工循环，计算收益
@@ -181,22 +206,7 @@ pub mod pallet {
 					}
 					None => {}
 				}
-				//获取订单矿工集合
-
-				// 调用订单清算
-				/*match OrderInfo::<T>::get(order_index) {
-					Some(mut order_info) => {
-						if let StorageOrderStatus::Pending = order_info.status {
-							order_info.status = StorageOrderStatus::Canceled;
-							OrderInfo::<T>::insert(order_index,order_info.clone());
-							//发送订单取消时间事件
-							Self::deposit_event(Event::OrderCanceled(order_index.clone() , order_info.cid));
-						}
-					},
-					None => ()
-				}*/
 			}
-
 			0
 		}
 	}
@@ -229,9 +239,11 @@ pub mod pallet {
 
 			if price_opt.is_some() {
 				let amount :BalanceOf<T> = price_opt.unwrap();
-
 				if T::BalanceToNumber::convert(amount) > 0 {
+					//从资金池中进行转账
 					&Self::withdrawal_(&who,amount)?;
+					// 记录累计收益
+					T::WorkerInterface::record_miner_income(&who,amount);
 					MinerPrice::<T>::remove(&who);
 					Self::deposit_event(Event::Withdrawal(who, amount, Self::pot()));
 				}

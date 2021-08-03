@@ -24,8 +24,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use super::*;
 
-	type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
@@ -76,7 +74,7 @@ pub mod pallet {
 	/// 矿工收益
 	#[pallet::storage]
 	#[pallet::getter(fn miner_income)]
-	pub(super) type MinerIncome<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BalanceOf<T>, ValueQuery>;
+	pub(super) type MinerIncome<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BalanceOf<T>, OptionQuery>;
 
 	/// 矿工总存储
 	#[pallet::storage]
@@ -119,7 +117,7 @@ pub mod pallet {
 		ProofOfReplicationFinish(u64),
 		/// 注册成功
 		RegisterSuccess(T::AccountId),
-		/// 复制证明完成
+		/// 时空证明完成
 		ProofOfSpacetimeFinish(T::AccountId),
 		/// 健康检查完成
 		HealthCheck(T::BlockNumber),
@@ -403,5 +401,17 @@ impl<T: Config> WorkerInterface for Pallet<T> {
 	/// 获取订单矿工列表
 	fn order_miners(order_id: u64) -> Vec<Self::AccountId>{
 		MinerSetOfOrder::<T>::get(order_id)
+	}
+	/// 记录矿工收益
+	fn record_miner_income(account_id: &Self::AccountId,income: Self::Balance){
+		match MinerIncome::<T>::get(account_id) {
+			Some(exists_income) => {
+				let total_income = income + exists_income;
+				MinerIncome::<T>::insert(account_id,total_income);
+			},
+			None => {
+				MinerIncome::<T>::insert(account_id,income);
+			}
+		}
 	}
 }
