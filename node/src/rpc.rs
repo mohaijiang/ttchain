@@ -96,6 +96,7 @@ pub fn create_full<C, P ,SC, B>(
 	C::Api: BlockBuilder<Block>,
 	C::Api: BabeApi<Block>,
 	C::Api: storage_order_rpc::StorageRuntimeApi<Block, AccountId, BlockNumber>,
+	C::Api: worker_rpc::WorkerRuntimeApi<Block, AccountId, BlockNumber>,
 	P: TransactionPool + 'static,
 	SC: SelectChain<Block> +'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
@@ -104,6 +105,7 @@ pub fn create_full<C, P ,SC, B>(
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
 	use storage_order_rpc::{StorageOrderApi , StorageOrder};
+	use worker_rpc::{WorkerApi , Worker};
 
 	let mut io = jsonrpc_core::IoHandler::default();
 	let FullDeps {
@@ -183,6 +185,10 @@ pub fn create_full<C, P ,SC, B>(
 
 	io.extend_with(
 		StorageOrderApi::to_delegate(StorageOrder::new(client.clone()),
+	));
+
+	io.extend_with(
+		WorkerApi::to_delegate(Worker::new(client.clone()),
 	));
 
 	// Extend this RPC with a custom API by using the following syntax.

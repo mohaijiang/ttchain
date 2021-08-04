@@ -40,8 +40,6 @@ version = '3.0.0'
 path = '../runtime'
 version = '3.0.0'
 
-
-
 [dependencies.pallet-transaction-payment-rpc]
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
@@ -165,9 +163,6 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
-
-
-
 [dependencies.sp-finality-grandpa]
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
@@ -274,6 +269,11 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
+
+[dependencies.worker-rpc]
+default-features = false
+path = '../pallets/worker/rpc'
+version = '3.0.0'
 
 [[bin]]
 name = 'node-template'

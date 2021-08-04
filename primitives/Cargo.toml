@@ -4,7 +4,7 @@ description = 'FRAME pallet template for defining custom runtime logic.'
 edition = '2018'
 homepage = 'https://substrate.dev'
 license = 'Unlicense'
-name = 'storage-order'
+name = 'ttc-primitives'
 readme = 'README.md'
 repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
 version = '3.0.0'
@@ -12,52 +12,25 @@ version = '3.0.0'
 targets = ['x86_64-unknown-linux-gnu']
 
 
-[dev-dependencies.sp-core]
-default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
-tag = 'monthly-2021-07'
-version = '3.0.0'
-
-[dev-dependencies.sp-io]
-default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
-tag = 'monthly-2021-07'
-version = '3.0.0'
-
-[dev-dependencies.sp-runtime]
-default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
-tag = 'monthly-2021-07'
-version = '3.0.0'
-
 [features]
 default = ['std']
-runtime-benchmarks = ['frame-benchmarking']
 std = [
     'serde',
     'codec/std',
-    'frame-support/std',
+    'sp-debug-derive/std',
+    "sp-core/std",
     'frame-system/std',
-    'frame-benchmarking/std',
     'sp-std/std',
-    'sp-runtime/std',
-    'primitives/std'
+    'sp-runtime/std'
 ]
-try-runtime = ['frame-support/try-runtime']
+
 [dependencies.codec]
 default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
 version = '2.0.0'
 
-[dependencies.frame-benchmarking]
-default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
-optional = true
-tag = 'monthly-2021-07'
-version = '3.1.0'
-
-[dependencies.frame-support]
+[dependencies.sp-debug-derive]
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
@@ -81,21 +54,15 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
-[dependencies.primitives]
-default-features = false
-package="ttc-primitives"
-path = '../../primitives'
-version = '3.0.0'
-
-[dependencies.payment]
-default-features = false
-path = '../payment'
-version = '3.0.0'
-
-
 [dependencies.serde]
 optional = true
 version = "1.0.101"
 
 [dependencies]
 serde_json = "1.0.59"
+
+[dependencies.sp-core]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'

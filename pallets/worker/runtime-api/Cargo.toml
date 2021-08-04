@@ -1,5 +1,5 @@
 [package]
-name = "storage-order-runtime-api"
+name = "worker-runtime-api"
 version = "3.0.0"
 authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
 edition = "2018"

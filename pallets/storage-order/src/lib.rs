@@ -8,15 +8,12 @@ pub use pallet::*;
 use sp_std::vec::Vec;
 use frame_support::{
 	traits::{Currency},
-	ensure,
-	codec::{Decode, Encode},
 	dispatch::DispatchResult, pallet_prelude::*
 };
 use sp_runtime::traits::Convert;
 
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-
+use primitives::p_storage_order::*;
+use primitives::p_payment::*;
 
 
 #[frame_support::pallet]
@@ -38,144 +35,46 @@ pub mod pallet {
 
 		/// 订单等待时间
 		type OrderWaitingTime: Get<Self::BlockNumber>;
+		// 每byte 每天的价格
+		type PerByteDayPrice: Get<u64>;
 
 		/// 支付费用和持有余额的货币。
 		type Currency: Currency<Self::AccountId>;
 
 		/// 金额转换数字
 		type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
+		// 区块高度转数字
+		type BlockNumberToNumber: Convert<Self::BlockNumber,u128>;
+
+		/// 订单接口
+		type PaymentInterface: PaymentInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber,Balance = BalanceOf<Self>>;
 	}
 
 
-
-	#[derive( Encode, Decode, RuntimeDebug, PartialEq, Eq, Copy, Clone)]
-	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-	pub enum StorageOrderStatus {
-		/// 待处理.
-		Pending,
-		/// 已完成.
-		Finished,
-		/// 已取消.
-		Canceled,
-	}
-
-	impl Default for StorageOrderStatus {
-		fn default() -> Self {
-			StorageOrderStatus::Pending
-		}
-	}
-
-
-	#[derive(Encode, Decode, RuntimeDebug,Clone, Eq, PartialEq, Default)]
-	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-	pub struct StorageOrder<AccountId, BlockNumber> {
-		/// 订单索引
-		pub index: u64,
-		/// cid
-		pub cid: Vec<u8>,
-		/// AccountId
-		pub account_id: AccountId,
-		/// 文件名
-		pub file_name: Vec<u8>,
-		/// 支付价格
-		#[cfg_attr(feature = "std", serde(serialize_with = "string_serialize"))]
-		pub price: u128,
-		/// 存储期限
-		pub storage_deadline: BlockNumber,
-		/// 文件大小
-		pub size: u32,
-		/// 块高
-		pub block_number: BlockNumber,
-		/// 订单状态
-		pub status: StorageOrderStatus,
-		/// 副本数
-		pub replication: u32,
-	}
-
-	// u128 does not serialize well into JSON for `handlebars`, so we represent it as a string.
-	#[cfg(feature = "std")]
-	fn string_serialize<S>(x: &u128, s: S) -> Result<S::Ok, S::Error>
-		where
-			S: serde::Serializer,
-	{
-		s.serialize_str(&x.to_string())
-	}
-
-	impl<AccountId, BlockNumber> StorageOrder<AccountId, BlockNumber> {
-		fn new (index: u64, cid: Vec<u8>, account_id: AccountId, file_name: Vec<u8>,
-			   price: u128, storage_deadline: BlockNumber, size: u32, block_number: BlockNumber) -> Self {
-			StorageOrder {
-				index,
-				cid,
-				account_id,
-				file_name,
-				price,
-				storage_deadline,
-				size,
-				block_number,
-				status: StorageOrderStatus::Pending,
-				replication: 0,
-			}
-		}
-	}
-
-	#[derive(Encode, Decode, RuntimeDebug,Clone, Eq, PartialEq, Default)]
-	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-	pub struct OrderPage<AccountId, BlockNumber> {
-		/// 内容
-		pub content: Vec<StorageOrder<AccountId, BlockNumber>>,
-		/// cid
-		pub total: u64
-	}
-
-	impl<AccountId, BlockNumber> OrderPage<AccountId, BlockNumber> {
-		pub(crate) fn new (content: Vec<StorageOrder<AccountId, BlockNumber>>, total: u64) -> Self {
-			OrderPage {
-				content,
-				total
-			}
-		}
-	}
-
-	// 存储订单个数
+	/// 存储订单个数
 	#[pallet::storage]
 	#[pallet::getter(fn order_count)]
 	pub(super) type OrderCount<T: Config> = StorageValue<_, u64, ValueQuery>;
 
-	// 存储订单信息
+	/// 存储订单信息
 	#[pallet::storage]
 	#[pallet::getter(fn order_info)]
 	pub(super) type OrderInfo<T: Config> = StorageMap<_, Twox64Concat, u64, StorageOrder<T::AccountId, T::BlockNumber>, OptionQuery>;
 
-	// 用户订单个数
+	/// 用户订单个数
 	#[pallet::storage]
 	#[pallet::getter(fn user_order_count)]
 	pub(super) type UserOrderCount<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
 
-	// 用户订单数据
+	/// 用户订单数据
 	#[pallet::storage]
 	#[pallet::getter(fn user_order_index)]
 	pub(super) type UserOrderIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, u64, OptionQuery>;
 
-	// 矿工订单个数
-	#[pallet::storage]
-	#[pallet::getter(fn miner_order_count)]
-	pub(super) type MinerOrderCount<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
-
-	// 矿工订单数据
-	#[pallet::storage]
-	#[pallet::getter(fn miner_order_index)]
-	pub(super) type MinerOrderIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, u64, OptionQuery>;
-
-	// 块高存储订单集合
+	/// 块高存储订单集合
 	#[pallet::storage]
 	#[pallet::getter(fn order_set_of_block)]
 	pub(super) type OrderSetOfBlock<T: Config> = StorageMap<_, Twox64Concat, T::BlockNumber, Vec<u64>, OptionQuery>;
-
-	// 订单对应矿工集合
-	#[pallet::storage]
-	#[pallet::getter(fn miner_set_of_order)]
-	pub(super) type MinerSetOfOrder<T: Config> = StorageMap<_, Twox64Concat, u64, Vec<T::AccountId>, OptionQuery>;
 
 
 	// Pallets use events to inform users when important changes are made.
@@ -207,6 +106,8 @@ pub mod pallet {
 							if let StorageOrderStatus::Pending = order_info.status {
 								order_info.status = StorageOrderStatus::Canceled;
 								OrderInfo::<T>::insert(order_index,order_info.clone());
+								// 退款
+								T::PaymentInterface::cancel_order(&order_index,&order_info.price,&order_info.storage_deadline,&order_info.account_id);
 								//发送订单取消时间事件
 								Self::deposit_event(Event::OrderCanceled(order_index.clone() , order_info.cid));
 							}
@@ -237,6 +138,8 @@ pub mod pallet {
 		AlreadyCallOrderFinish,
 		/// 订单不存在
 		OrderDoesNotExist,
+		/// 订单价格错误
+		OrderPriceError,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -271,10 +174,18 @@ pub mod pallet {
 				cid.clone(),
 				who.clone(),
 				file_name.clone(),
-				T::BalanceToNumber::convert(price),
+				T::BalanceToNumber::convert(price.clone()),
 				storage_deadline,
 				size,
 				block_number.clone());
+			let per_day_block = primitives::constants::time::DAYS as u128;
+			let per_byte_day_price = T::PerByteDayPrice::get() as u128;
+			let size_u128 = size as u128;
+			let duration_u128 = T::BlockNumberToNumber::convert(duration);
+			let price_u128 = T::BalanceToNumber::convert(price);
+			ensure!( (size_u128 * duration_u128  * per_byte_day_price / per_day_block )  ==  price_u128, Error::<T>::OrderPriceError);
+			// 支付模块记录订单金额
+			T::PaymentInterface::pay_order(&order_index,&price,&order.storage_deadline,&who)?;
 			//存入区块数据
 			OrderInfo::<T>::insert(&order_index, order.clone());
 			//获得用户索引个数
@@ -291,57 +202,7 @@ pub mod pallet {
 			OrderSetOfBlock::<T>::insert(&block_number,order_set);
 			//发送订单创建事件
 			Self::deposit_event(Event::OrderCreated(order.index,order.cid,order.account_id,order.file_name,
-													order.storage_deadline,order.size));
-			// Return a successful DispatchResultWithPostInfo
-			Ok(())
-		}
-
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn finish_order(
-			origin: OriginFor<T>,
-			miner: T::AccountId,
-			order_index: u64,
-			cid: Vec<u8>
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			//校验是否为矿工
-			ensure!(&who == &miner, Error::<T>::IllegalMiner);
-			//获取订单
-			let mut order_info = OrderInfo::<T>::get(&order_index).ok_or(Error::<T>::OrderDoesNotExist)?;
-			//检验文件cid是否正确
-			ensure!(&order_info.cid == &cid, Error::<T>::IllegalFileCID);
-			//校验文件状态 如果文件状态为待处理则改为已完成
-			match &order_info.status {
-				StorageOrderStatus::Canceled => Err(Error::<T>::OrderDoesNotExist)?,
-				StorageOrderStatus::Pending => order_info.status = StorageOrderStatus::Finished,
-				_ => (),
-			}
-			//判断订单是否已经提交
-			let mut miners = MinerSetOfOrder::<T>::get(&order_index).unwrap_or(Vec::<T::AccountId>::new());
-			//遍历矿工是否存在，如果存在则报已经完成订单，如果不存在则进行添加
-			match miners.binary_search(&miner) {
-				// If the search succeeds, the caller is already a miners, so just return
-				Ok(_) => Err(Error::<T>::AlreadyCallOrderFinish)?,
-				// If the search fails, the caller is not a miners and we learned the index where
-				// they should be inserted
-				Err(index) => {
-					miners.insert(index, miner.clone());
-					MinerSetOfOrder::<T>::insert(&order_index,miners);
-				}
-			}
-			//订单信息副本数+1
-			order_info.replication = order_info.replication + 1;
-			//维护订单信息
-			OrderInfo::<T>::insert(&order_index,order_info);
-			//获得矿工索引个数
-			let miner_order_index = MinerOrderCount::<T>::get(&miner);
-			//存入矿工索引数据
-			MinerOrderIndex::<T>::insert(&miner,&miner_order_index,order_index);
-			//矿工索引个数+1
-			MinerOrderCount::<T>::insert(&miner,miner_order_index + 1);
-
-			//发送订单完成事件
-			Self::deposit_event(Event::OrderFinish(order_index));
+													order.storage_deadline,order.file_size));
 			// Return a successful DispatchResultWithPostInfo
 			Ok(())
 		}
@@ -353,32 +214,78 @@ impl<T: Config> Pallet<T> {
 
 	// Add public immutables and private mutables.
 	pub fn page_user_order(account_id: T::AccountId, current: u64, size: u64, sort: u8) -> OrderPage<T::AccountId,T::BlockNumber> {
-		let total = UserOrderCount::<T>::get(account_id) as u64;
+		let total = UserOrderCount::<T>::get(&account_id) as u64;
 		let current = if current == 0 { 1 } else { current };
 		let list =  if sort == 0 {
 			let begin = (current - 1) * size;
 			let end = if current * size > total { total } else { current * size };
-			Self::get_order_list(begin, end)
+			Self::get_order_list(&account_id, begin, end)
 		} else {
 			let begin = if total >  current * size { total - current * size } else { 0 };
-			let end = if total > ((current - 1) * size +1 ) { total - ((current - 1) * size +1 ) } else { 0 };
-			let mut list = Self::get_order_list(begin, end);
+			let end = if total > (current - 1) * size { total - (current - 1) * size } else { 0 };
+			let mut list = Self::get_order_list(&account_id,begin, end);
 			list.reverse();
 			list
 		};
 		OrderPage::new(list, total)
 	}
 
-	fn get_order_list(begin: u64,end: u64) -> Vec<StorageOrder<T::AccountId,T::BlockNumber>> {
+	fn get_order_list(account_id: &T::AccountId,begin: u64,end: u64) -> Vec<StorageOrder<T::AccountId,T::BlockNumber>> {
 		let mut list = Vec::<StorageOrder<T::AccountId,T::BlockNumber>>::new();
 		for i in begin..end {
-			match OrderInfo::<T>::get(i){
-				Some(t) => {
-					list.push(t);
+			match UserOrderIndex::<T>::get(account_id,i){
+				Some(index) =>{
+					match OrderInfo::<T>::get(index){
+						Some(t) => {
+							list.push(t);
+						},
+						None => ()
+					}
 				},
 				None => ()
 			}
+
 		}
 		list
+	}
+}
+
+impl<T: Config> StorageOrderInterface for Pallet<T> {
+	type AccountId = T::AccountId;
+	type BlockNumber = T::BlockNumber;
+
+	fn get_storage_order(order_index: &u64) -> Option<StorageOrder<Self::AccountId, Self::BlockNumber>> {
+		OrderInfo::<T>::get(order_index)
+	}
+
+	fn add_order_replication(order_index: &u64) {
+		//获取订单
+		if let Some(mut order_info) = OrderInfo::<T>::get(order_index){
+			//校验文件状态 如果文件状态为待处理则改为已完成
+			if let StorageOrderStatus::Canceled = &order_info.status {
+				return;
+			}
+			if let StorageOrderStatus::Pending = &order_info.status {
+				order_info.status = StorageOrderStatus::Finished;
+			}
+			//订单信息副本数+1
+			order_info.replication = order_info.replication + 1;
+			OrderInfo::<T>::insert(order_index,order_info);
+		}
+	}
+
+	fn sub_order_replication(order_index: &u64) {
+		//获取订单
+		if let Some(mut order_info) = OrderInfo::<T>::get(order_index) {
+			//校验文件状态 如果文件状态为待处理则改为已完成
+			if let StorageOrderStatus::Canceled = &order_info.status {
+				return;
+			}
+			//订单信息副本数-1
+			if order_info.replication > 0 {
+				order_info.replication = order_info.replication - 1;
+			}
+			OrderInfo::<T>::insert(order_index,order_info);
+		}
 	}
 }

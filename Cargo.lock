@@ -3698,6 +3698,7 @@ dependencies = [
  "structopt",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
+ "worker-rpc",
 ]
 
 [[package]]
@@ -3732,6 +3733,7 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-utility",
  "parity-scale-codec",
+ "payment",
  "sp-api",
  "sp-authority-discovery",
  "sp-block-builder",
@@ -3749,6 +3751,9 @@ dependencies = [
  "storage-order",
  "storage-order-runtime-api",
  "substrate-wasm-builder",
+ "ttc-primitives",
+ "worker",
+ "worker-runtime-api",
 ]
 
 [[package]]
@@ -4533,6 +4538,23 @@ name = "paste"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf547ad0c65e31259204bd90935776d1c693cec2f4ff7abb7a1bbbd40dfe58"
+
+[[package]]
+name = "payment"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "ttc-primitives",
+]
 
 [[package]]
 name = "pbkdf2"
@@ -7506,12 +7528,14 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "payment",
  "serde",
  "serde_json",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "ttc-primitives",
 ]
 
 [[package]]
@@ -7538,7 +7562,7 @@ dependencies = [
  "parity-scale-codec",
  "serde_json",
  "sp-api",
- "storage-order",
+ "ttc-primitives",
 ]
 
 [[package]]
@@ -8297,6 +8321,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 
 [[package]]
+name = "ttc-primitives"
+version = "3.0.0"
+dependencies = [
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-debug-derive",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "twox-hash"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8979,6 +9017,50 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2986deb581c4fe11b621998a5e53361efe6b48a151178d0cd9eeffa4dc6acc9"
 dependencies = [
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "worker"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "ttc-primitives",
+]
+
+[[package]]
+name = "worker-rpc"
+version = "3.0.0"
+dependencies = [
+ "futures 0.3.15",
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "parity-scale-codec",
+ "sc-rpc",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-runtime",
+ "worker-runtime-api",
+]
+
+[[package]]
+name = "worker-runtime-api"
+version = "3.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "serde_json",
+ "sp-api",
+ "ttc-primitives",
 ]
 
 [[package]]

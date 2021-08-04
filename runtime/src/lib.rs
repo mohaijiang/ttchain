@@ -55,35 +55,24 @@ use frame_system::{
 	EnsureRoot,
 };
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-
+use pallet_authority_discovery;
 
 /// Import the template pallet.
 pub use pallet_template;
 
 /// 存储订单 pallet
-pub use storage_order;
-use storage_order::OrderPage;
+pub use p_storage_order;
 
-use pallet_authority_discovery;
+/// 工作者模块
+pub use p_worker;
 
-/// An index to a block.
-pub type BlockNumber = u32;
-
-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
-
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-
-/// Balance of an account.
-pub type Balance = u128;
-
-/// Index of a transaction in the chain.
-pub type Index = u32;
-
-/// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
+/// 引用元数据
+pub use primitives::{
+	p_storage_order::OrderPage,
+	p_worker::MinerOrderPage,
+	constants::{time::*},
+	*
+};
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -142,23 +131,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
 };
-
-/// This determines the average expected block time that we are targeting.
-/// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
-/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
-/// up by `pallet_aura` to implement `fn slot_duration()`.
-///
-/// Change this to adjust the block time.
-pub const MILLISECS_PER_BLOCK: u64 = 6000;
-
-// NOTE: Currently it is not possible to change the slot duration after the chain has started.
-//       Attempting to do so will brick block production.
-pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
-
-// Time is measured by number of blocks.
-pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
-pub const HOURS: BlockNumber = MINUTES * 60;
-pub const DAYS: BlockNumber = HOURS * 24;
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -258,10 +230,6 @@ impl pallet_utility::Config for Runtime {
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
-
-// impl pallet_aura::Config for Runtime {
-// 	type AuthorityId = AuraId;
-// }
 
 pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 10 * MINUTES;
 pub const EPOCH_DURATION_IN_SLOTS: u64 = {
@@ -373,6 +341,7 @@ impl pallet_sudo::Config for Runtime {
 /// Configure the pallet-template in pallets/template.
 impl pallet_template::Config for Runtime {
 	type Event = Event;
+	type Currency = Balances;
 }
 
 parameter_types! {
@@ -590,6 +559,7 @@ impl pallet_authority_discovery::Config for Runtime {}
 
 parameter_types! {
 	pub const OrderWaitingTime: BlockNumber = 30 * MINUTES;
+	pub const PerByteDayPrice: u64 = 10;
 }
 
 /// storage order Runtime config
@@ -597,7 +567,41 @@ impl storage_order::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type OrderWaitingTime = OrderWaitingTime;
+	type PerByteDayPrice = PerByteDayPrice;
 	type BalanceToNumber = ConvertInto;
+	type BlockNumberToNumber = ConvertInto;
+	type PaymentInterface = Payment;
+}
+
+parameter_types! {
+	pub const ReportInterval: BlockNumber = 1 * DAYS;
+	//定义文件副本收益限额 eg：前10可获得奖励
+	pub const AverageIncomeLimit: u8 = 10;
+}
+
+/// storage order Runtime config
+impl worker::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type ReportInterval = ReportInterval;
+	type BalanceToNumber = ConvertInto;
+	type StorageOrderInterface = StorageOrder;
+	type AverageIncomeLimit = AverageIncomeLimit;
+}
+
+parameter_types! {
+	pub const NumberOfIncomeMiner: usize = 10;
+}
+
+/// Configure the payment in pallets/payment.
+impl payment::Config for Runtime {
+	type Event = Event;
+	type NumberOfIncomeMiner = NumberOfIncomeMiner;
+	type BalanceToNumber = ConvertInto;
+	type NumberToBalance = ConvertInto;
+	type Currency = Balances;
+	type StorageOrderInterface = StorageOrder;
+	type WorkerInterface = Worker;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -611,7 +615,6 @@ construct_runtime!(
 		Utility: pallet_utility::{Pallet, Call, Event},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-		//Aura: pallet_aura::{Pallet, Config<T>},
 		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
@@ -627,7 +630,8 @@ construct_runtime!(
 		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config},
 		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-
+		Worker: worker::{Pallet, Call, Storage, Event<T>},
+		Payment: payment::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -715,15 +719,6 @@ impl_runtime_apis! {
 		}
 	}
 
-	// impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-	// 	fn slot_duration() -> sp_consensus_aura::SlotDuration {
-	// 		sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
-	// 	}
-	//
-	// 	fn authorities() -> Vec<AuraId> {
-	// 		Aura::authorities()
-	// 	}
-	// }
 	impl sp_authority_discovery::AuthorityDiscoveryApi<Block> for Runtime {
 		fn authorities() -> Vec<AuthorityDiscoveryId> {
 			AuthorityDiscovery::authorities()
@@ -794,6 +789,12 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl worker_runtime_api::WorkerApi<Block, AccountId, BlockNumber> for Runtime {
+		fn page_miner_order(account_id: AccountId, current: u64, size: u64, sort: u8) -> MinerOrderPage<AccountId, BlockNumber> {
+			Worker::page_miner_order(account_id, current, size, sort)
+		}
+	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn dispatch_benchmark(
@@ -819,7 +820,6 @@ impl_runtime_apis! {
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
-
 
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);

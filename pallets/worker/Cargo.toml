@@ -4,7 +4,7 @@ description = 'FRAME pallet template for defining custom runtime logic.'
 edition = '2018'
 homepage = 'https://substrate.dev'
 license = 'Unlicense'
-name = 'storage-order'
+name = 'worker'
 readme = 'README.md'
 repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
 version = '3.0.0'
@@ -86,12 +86,6 @@ default-features = false
 package="ttc-primitives"
 path = '../../primitives'
 version = '3.0.0'
-
-[dependencies.payment]
-default-features = false
-path = '../payment'
-version = '3.0.0'
-
 
 [dependencies.serde]
 optional = true

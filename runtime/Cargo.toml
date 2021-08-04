@@ -66,6 +66,37 @@ std = [
     "pallet-offences/std",
     "pallet-scheduler/std",
     "pallet-utility/std",
+    'codec/std',
+    'frame-executive/std',
+    'frame-support/std',
+    'frame-system-rpc-runtime-api/std',
+    'frame-system/std',
+    'pallet-aura/std',
+    'pallet-balances/std',
+    'pallet-grandpa/std',
+    'pallet-randomness-collective-flip/std',
+    'pallet-sudo/std',
+    'pallet-template/std',
+    'pallet-timestamp/std',
+    'pallet-transaction-payment-rpc-runtime-api/std',
+    'pallet-transaction-payment/std',
+    'sp-api/std',
+    'sp-block-builder/std',
+    'sp-consensus-aura/std',
+    'sp-core/std',
+    'sp-inherents/std',
+    'sp-offchain/std',
+    'sp-runtime/std',
+    'sp-session/std',
+    'sp-std/std',
+    'sp-transaction-pool/std',
+    'sp-version/std',
+    'storage-order/std',
+    'storage-order-runtime-api/std',
+    'worker/std',
+    'worker-runtime-api/std',
+    'primitives/std',
+    'payment/std'
 ]
 [dependencies.codec]
 default-features = false
@@ -150,6 +181,11 @@ default-features = false
 path = '../pallets/template'
 version = '3.0.0'
 
+[dependencies.payment]
+default-features = false
+path = '../pallets/payment'
+version = '3.0.0'
+
 [dependencies.storage-order]
 default-features = false
 path = '../pallets/storage-order'
@@ -158,6 +194,16 @@ version = '3.0.0'
 [dependencies.storage-order-runtime-api]
 default-features = false
 path = '../pallets/storage-order/runtime-api'
+version = '3.0.0'
+
+[dependencies.worker]
+default-features = false
+path = '../pallets/worker'
+version = '3.0.0'
+
+[dependencies.worker-runtime-api]
+default-features = false
+path = '../pallets/worker/runtime-api'
 version = '3.0.0'
 
 [dependencies.pallet-timestamp]
@@ -330,4 +376,10 @@ version = '3.0.0'
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.primitives]
+package="ttc-primitives"
+default-features = false
+path = '../primitives'
 version = '3.0.0'

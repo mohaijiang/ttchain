@@ -4,15 +4,15 @@
 
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
-pub use primitives::p_storage_order::OrderPage;
+pub use primitives::p_worker::MinerOrderPage;
 use codec::Codec;
 
 sp_api::decl_runtime_apis! {
 
-    pub trait StorageOrderApi<AccountId,BlockNumber> where
+    pub trait WorkerApi<AccountId,BlockNumber> where
         AccountId: Codec,
         BlockNumber: Codec
     {
-        fn page_user_order(account_id: AccountId, current: u64, size: u64, sort: u8) -> OrderPage<AccountId,BlockNumber>;
+        fn page_miner_order(account_id: AccountId, current: u64, size: u64, sort: u8) -> MinerOrderPage<AccountId,BlockNumber>;
     }
 }
