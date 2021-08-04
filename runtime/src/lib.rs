@@ -12,11 +12,11 @@ use sp_core::{
 	OpaqueMetadata,
 };
 use sp_runtime::{
-	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature,
+	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys,
 	transaction_validity::{TransactionValidity, TransactionSource, TransactionPriority},
 };
 use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, AccountIdLookup, Verify, IdentifyAccount, NumberFor, ConvertInto,
+	BlakeTwo256, Block as BlockT, AccountIdLookup, NumberFor, ConvertInto,
 	OpaqueKeys,
 };
 use sp_api::impl_runtime_apis;
@@ -55,16 +55,6 @@ use frame_system::{
 	EnsureRoot,
 };
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use pallet_authority_discovery;
-
-/// Import the template pallet.
-pub use pallet_template;
-
-/// 存储订单 pallet
-pub use p_storage_order;
-
-/// 工作者模块
-pub use p_worker;
 
 /// 引用元数据
 pub use primitives::{
@@ -118,8 +108,8 @@ pub use currency::*;
 //   https://substrate.dev/docs/en/knowledgebase/runtime/upgrades#runtime-versioning
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node-template"),
-	impl_name: create_runtime_str!("node-template"),
+	spec_name: create_runtime_str!("ttc-chain"),
+	impl_name: create_runtime_str!("ttc-chain"),
 	authoring_version: 1,
 	// The version of the runtime specification. A full node will not attempt to use its native
 	//   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
@@ -611,25 +601,47 @@ construct_runtime!(
 		NodeBlock = opaque::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
+		//基本模块
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
+
+		//session必备前置模块
+		//BABE 模块通过从 VRF 算法的输出中收集链上随机因子，和有效管理区块的周期更替来实现 BABE 共识机制的部份功能。
+		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned},
+		//Timestamp模块提供了获取和设置链上时间的功能。
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
+		//Balances 模块提供了帐户和余额的管理功能。
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		//TransactionPayment：提供计算预分派事务费用的基本逻辑。
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
+
+		//共识模块
+		//Authorship 模块用于追踪当前区块的创建者，以及邻近的 “叔块”。
+		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
+		//选举模块
+		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
+		//质押模块
+		Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>},
+		//Session 模块允许验证人管理其会话密钥，提供了更改会话长度的及处理会话轮换的功能。
+		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
+		//历史模块
+		Historical: pallet_session_historical::{Pallet},
+		//GRANDPA模块通过维护一个服务于native代码的GRANDPA权威集，以拓展GRANDPA的共识系统。
+		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
+		//Substrate 的 core/authority-discovery 库使用了 Authority Discovery 模块来获取当前验证者集，获取本节点验证者ID，以及签署和验证与本节点与其他权威节点之间交换的消息。
+		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config},
+
+		//其他模块
+		//Sudo pallet用来授予某个账户 (称为 "sudo key") 权限去执行需要Root权限的交易函数，或者是指定一个新账户来替代掉原来的sudo key。
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
+		//Scheduler:利用此模块可实现在指定区块号或指定周期的计划函数调用。 这些提前设定的可调用函数，可以包含调用者名称或匿名，也可跟着被取消。
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
+
+		//ttc-pallet
 		// Include the custom logic from the pallet-template in the runtime.
 		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
 		StorageOrder: storage_order::{Pallet, Call, Storage, Event<T>},
-		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned},
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-		Historical: pallet_session_historical::{Pallet},
-		Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>},
-		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
-		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config},
-		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
 		Worker: worker::{Pallet, Call, Storage, Event<T>},
 		Payment: payment::{Pallet, Call, Storage, Event<T>},
 	}
