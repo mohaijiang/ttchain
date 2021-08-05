@@ -282,15 +282,15 @@ impl<T: Config> PaymentInterface for Pallet<T> {
 		match OrderPrice::<T>::get(order_index) {
 			// Return an error if the value has not been set.
 			None => {
+				// 转账用户订单金额
+				T::Currency::transfer(&account_id, &Self::account_id(), *order_price, ExistenceRequirement::AllowDeath)?;
 				// 记录订单金额
 				OrderPrice::<T>::insert(order_index,order_price);
 				//记录订单到期区块
 				let mut order_deadline_set = OrderDeadline::<T>::get(&deadline).unwrap_or(Vec::<u64>::new());
 				order_deadline_set.push(*order_index);
 				OrderDeadline::<T>::insert(&deadline,order_deadline_set);
-
-				// 转账用户订单金额
-				T::Currency::transfer(&account_id, &Self::account_id(), *order_price, ExistenceRequirement::AllowDeath)
+				Ok(())
 			},
 			Some(old) => {
             	// 已有订单金额，理论上不可能，暂时不修改数据
