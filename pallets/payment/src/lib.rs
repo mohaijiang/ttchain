@@ -306,7 +306,7 @@ impl<T: Config> PaymentInterface for Pallet<T> {
 				if dispatch_result.is_ok() {
 					//记录订单到期区块
 					let mut order_deadline_set = OrderDeadline::<T>::get(&deadline).unwrap_or(Vec::<u64>::new());
-					order_deadline_set.retain(|&x| x == *order_index);
+					order_deadline_set.retain(|&x| x != *order_index);
 					OrderDeadline::<T>::insert(&deadline,order_deadline_set);
 					OrderPrice::<T>::remove(order_index);
 				}
