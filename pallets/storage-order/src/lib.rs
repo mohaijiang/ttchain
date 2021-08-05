@@ -183,7 +183,7 @@ pub mod pallet {
 			let size_u128 = size as u128;
 			let duration_u128 = T::BlockNumberToNumber::convert(duration);
 			let price_u128 = T::BalanceToNumber::convert(price);
-			ensure!( (size_u128 * duration_u128  * per_byte_day_price / per_day_block )  ==  price_u128, Error::<T>::OrderPriceError);
+			ensure!( (size_u128 * duration_u128  * per_byte_day_price / per_day_block )  >=  price_u128, Error::<T>::OrderPriceError);
 			// 支付模块记录订单金额
 			T::PaymentInterface::pay_order(&order_index,&price,&order.storage_deadline,&who)?;
 			//存入区块数据
