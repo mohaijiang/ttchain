@@ -1,4 +1,4 @@
-use crate as storage_order;
+use crate as pallet_template;
 use sp_core::H256;
 use frame_support::parameter_types;
 use sp_runtime::{
@@ -17,7 +17,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		StorageOrder: storage_order::{Pallet, Call, Storage, Event<T>},
+		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -52,7 +52,7 @@ impl system::Config for Test {
 	type OnSetCode = ();
 }
 
-impl storage_order::Config for Test {
+impl pallet_template::Config for Test {
 	type Event = Event;
 }
 

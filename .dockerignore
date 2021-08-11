@@ -1,6 +1,2 @@
-doc
-**target*
-.idea/
-Dockerfile
-.dockerignore
-.local
+*
+!target/release/node-template
