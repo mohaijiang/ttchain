@@ -198,12 +198,6 @@ default-features = false
 path = '../pallets/storage-order/rpc'
 version = '3.0.0'
 
-
-[dependencies.pallet-contracts-rpc]
-git = 'https://gitee.com/mohaijiang/substrate.git'
-tag = 'monthly-2021-07'
-version = '3.0.0'
-
 [dependencies.pallet-mmr-rpc]
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
