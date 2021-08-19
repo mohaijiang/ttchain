@@ -29,12 +29,48 @@ runtime-benchmarks = [
     'storage-order/runtime-benchmarks',
 ]
 std = [
+    "sp-authority-discovery/std",
+    "pallet-authority-discovery/std",
+    "pallet-authorship/std",
+    "sp-consensus-babe/std",
+    "pallet-babe/std",
+    "pallet-balances/std",
+    "sp-block-builder/std",
+    "codec/std",
+    "pallet-collective/std",
+    "frame-executive/std",
+    "pallet-grandpa/std",
+    "sp-inherents/std",
+    "sp-offchain/std",
+    "sp-core/std",
+    "pallet-randomness-collective-flip/std",
+    "sp-std/std",
+    "pallet-session/std",
+    "sp-api/std",
+    "sp-runtime/std",
+    "sp-staking/std",
+    "pallet-staking/std",
+    "sp-session/std",
+    "pallet-sudo/std",
+    "frame-support/std",
+    "frame-benchmarking/std",
+    "frame-system-rpc-runtime-api/std",
+    "frame-system/std",
+    "pallet-election-provider-multi-phase/std",
+    "pallet-timestamp/std",
+    "pallet-transaction-payment-rpc-runtime-api/std",
+    "pallet-transaction-payment/std",
+    "sp-transaction-pool/std",
+    "sp-version/std",
+    "sp-npos-elections/std",
+    "pallet-offences/std",
+    "pallet-scheduler/std",
+    "pallet-utility/std",
     'codec/std',
     'frame-executive/std',
     'frame-support/std',
     'frame-system-rpc-runtime-api/std',
     'frame-system/std',
-    'pallet-aura/std',
     'pallet-balances/std',
     'pallet-grandpa/std',
     'pallet-randomness-collective-flip/std',
@@ -45,7 +81,6 @@ std = [
     'pallet-transaction-payment/std',
     'sp-api/std',
     'sp-block-builder/std',
-    'sp-consensus-aura/std',
     'sp-core/std',
     'sp-inherents/std',
     'sp-offchain/std',
@@ -109,7 +144,7 @@ version = '3.0.0'
 optional = true
 version = '0.3.1'
 
-[dependencies.pallet-aura]
+[dependencies.pallet-babe]
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
@@ -199,7 +234,7 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
-[dependencies.sp-consensus-aura]
+[dependencies.sp-consensus-babe]
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
@@ -248,6 +283,94 @@ tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-version]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.sp-staking]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-staking-reward-curve]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+sp-session = { default-features = false, version = "3.0.0" }
+
+
+[dependencies.pallet-session]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+
+[dependencies.pallet-staking]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.frame-election-provider-support]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-election-provider-multi-phase]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.sp-npos-elections]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-collective]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.sp-authority-discovery]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-authority-discovery]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-authorship]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-offences]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-scheduler]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-utility]
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
