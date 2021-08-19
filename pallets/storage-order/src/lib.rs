@@ -301,7 +301,8 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 				order_info.replication = order_info.replication - 1;
 				let replicationCount = TotalCopies::<T>::get();
 				TotalCopies::<T>::put(replicationCount - 1);
-			}else if order_info.replication == 0 {
+			}
+			if order_info.replication == 0 {
 				if  ValidFilesCount::<T>::get() > 0{
 					let count = ValidFilesCount::<T>::get();
 					ValidFilesCount::<T>::put(count - 1);
