@@ -69,7 +69,6 @@ pub trait WorkerInterface {
     type Balance;
     /// 获取订单矿工列表
     fn order_miners(order_id: u64) -> Vec<Self::AccountId>;
-
     /// 记录矿工收益
     fn record_miner_income(account_id: &Self::AccountId,income: Self::Balance);
 }

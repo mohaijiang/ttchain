@@ -3,6 +3,9 @@ members = [
     'node',
     'pallets/template',
     'runtime',
+    "crates/curve",
+    "crates/merkle-tree",
+    "crates/eddsa",
 ]
 [profile.release]
 panic = 'unwind'

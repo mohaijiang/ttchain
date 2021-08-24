@@ -31,6 +31,13 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
+[dependencies.sp-std]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+
 [features]
 default = ['std']
 runtime-benchmarks = ['frame-benchmarking']
@@ -39,7 +46,8 @@ std = [
     'frame-support/std',
     'frame-system/std',
     'frame-benchmarking/std',
-    'sp-runtime/std'
+    'sp-runtime/std',
+    'sp-std/std',
 ]
 try-runtime = ['frame-support/try-runtime']
 [dependencies.codec]
@@ -66,3 +74,29 @@ default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
+
+
+
+[dependencies]
+log = { version = "0.4.14", default-features = false }
+
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+#num-bigint = "0.4"
+##num-traits = "0.2"
+rand = { version = "0.8", default-features = false }
+
+## Arkworks
+ark-std = { version = "0.3", default-features = false }
+ark-bls12-377 = { version = "0.3", default-features = false, features = ["curve"] }
+ark-bls12-381 = { version = "0.3", default-features = false, features = ["curve"] }
+ark-bn254 = { version = "0.3", default-features = false, features = ["curve"] }
+ark-bw6-761 = { version = "0.3", default-features = false }
+ark-cp6-782 = { version = "0.3", default-features = false }
+ark-ff = { version = "0.3", default-features = false }
+ark-ec = { version = "0.3", default-features = false }
+ark-serialize = { version = "0.3", default-features = false }
+ark-relations = { version = "0.3", default-features = false }
+ark-groth16 = { version = "0.3", default-features = false }
+
+# zkMega
+arkworks = { package = "zkmega-arkworks", path = "../../crates/curve" }

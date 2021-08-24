@@ -17,6 +17,8 @@ use primitives::p_storage_order::StorageOrderInterface;
 use primitives::p_storage_order::StorageOrderStatus;
 use primitives::p_worker::*;
 
+mod zk;
+
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[frame_support::pallet]
@@ -152,6 +154,8 @@ pub mod pallet {
 		AlreadyCallOrderFinish,
 		/// 订单不存在
 		OrderDoesNotExist,
+		/// 零知识证明无效
+		ProofInvalid,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -190,7 +194,10 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			miner: T::AccountId,
 			order_index: u64,
-			cid: Vec<u8>
+			cid: Vec<u8>,
+			comm_d: Vec<u8>,
+			comm_r: Vec<u8>,
+			proof: Vec<u8>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			//校验是否为矿工
@@ -208,10 +215,16 @@ pub mod pallet {
 			//判断订单是否已经提交
 			let miners = MinerSetOfOrder::<T>::get(&order_index);
 			ensure!(!miners.contains(&miner), Error::<T>::AlreadyCallOrderFinish);
+
+			//验证零知识证明
+			let zk_validate = zk::poreq_validate(proof,&comm_d,&comm_r);
+			ensure!(zk_validate,Error::<T>::ProofInvalid);
+
 			//添加订单矿工信息
 			Self::add_miner_set_of_order(&order_index,miner.clone());
 			//添加订单副本
 			T::StorageOrderInterface::add_order_replication(&order_index);
+			T::StorageOrderInterface::update_storage_order_comm(&order_index,comm_d, comm_r);
 			//存入矿工订单数据
 			let mut orders = MinerOrderSet::<T>::get(&miner);
 			orders.push(order_index);
