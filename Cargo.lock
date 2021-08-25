@@ -3697,6 +3697,7 @@ dependencies = [
  "structopt",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
+ "ttc-primitives",
  "worker-rpc",
 ]
 
@@ -4156,6 +4157,8 @@ dependencies = [
  "sp-tracing",
  "static_assertions",
  "substrate-test-utils",
+ "ttc-primitives",
+ "worker",
 ]
 
 [[package]]

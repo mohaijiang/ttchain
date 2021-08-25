@@ -3,13 +3,13 @@ use sp_core::{Pair, Public, sr25519, crypto::UncheckedInto};
 use node_template_runtime::{
 	AccountId, AuthorityDiscoveryConfig ,BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, SystemConfig, SessionConfig, StakingConfig, opaque::SessionKeys,
-	StakerStatus, Balance, WASM_BINARY, Signature,currency::DOLLARS
+	StakerStatus, Balance, WASM_BINARY, Signature
 };
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
 use hex_literal::hex;
-
+use primitives::constants::currency::DOLLARS;
 
 use sc_service::ChainType;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;

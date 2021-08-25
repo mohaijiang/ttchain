@@ -79,6 +79,17 @@ optional = true
 tag = 'monthly-2021-07'
 version = '3.1.0'
 
+[dependencies.primitives]
+package="ttc-primitives"
+default-features = false
+path = '../../primitives'
+version = '3.0.0'
+
+[dependencies.worker]
+default-features = false
+path = '../worker'
+version = '3.0.0'
+
 [dependencies]
 static_assertions = "1.1.0"
 serde = { version = "1.0.101", optional = true }
@@ -165,6 +176,9 @@ std = [
     "sp-application-crypto/std",
     "log/std",
     "frame-election-provider-support/std",
+    'primitives/std',
+    'worker/std',
+
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

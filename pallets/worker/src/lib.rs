@@ -19,6 +19,18 @@ use primitives::p_worker::*;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+
+use sp_std::collections::btree_map::BTreeMap;
+/// An event handler for reporting works
+pub trait Works<AccountId> {
+	fn report_works(workload_map: BTreeMap<AccountId, u128>, total_workload: u128) -> Weight;
+}
+
+impl<AId> Works<AId> for () {
+	fn report_works(_: BTreeMap<AId, u128>, _: u128) -> Weight { 0 }
+}
+
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_system::pallet_prelude::*;

@@ -259,6 +259,12 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '0.9.0'
 
+[dependencies.primitives]
+package="ttc-primitives"
+default-features = false
+path = '../primitives'
+version = '3.0.0'
+
 #[dependencies.pallet-staking]
 #git = 'https://gitee.com/mohaijiang/substrate.git'
 #tag = 'monthly-2021-07'
