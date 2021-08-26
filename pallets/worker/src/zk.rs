@@ -7,7 +7,7 @@ use sp_std::vec;
 
 // Bring in some tools for using pairing-friendly curves
 // We're going to use the BLS12-377 pairing-friendly elliptic curve.
-use ark_ff::{Field, ToBytes, PrimeField};
+use ark_ff::{Field, ToBytes};
 // use ark_bls12_377::{Bls12_377, Fr};
 // use ark_bls12_381::{Bls12_381, Fr};
 use ark_bn254::{Bn254, Fr};
@@ -38,22 +38,22 @@ const MIMC_ROUNDS: usize = 322;
 ///     return xL
 /// }
 /// ``
-fn mimc<F: Field>(mut xl: F, mut xr: F, constants: &[F]) -> F {
-    assert_eq!(constants.len(), MIMC_ROUNDS);
-
-    for i in 0..MIMC_ROUNDS {
-        let mut tmp1 = xl;
-        tmp1.add_assign(&constants[i]);
-        let mut tmp2 = tmp1;
-        tmp2.square_in_place();
-        tmp2.mul_assign(&tmp1);
-        tmp2.add_assign(&xr);
-        xr = xl;
-        xl = tmp2;
-    }
-
-    xl
-}
+// fn mimc<F: Field>(mut xl: F, mut xr: F, constants: &[F]) -> F {
+//     assert_eq!(constants.len(), MIMC_ROUNDS);
+//
+//     for i in 0..MIMC_ROUNDS {
+//         let mut tmp1 = xl;
+//         tmp1.add_assign(&constants[i]);
+//         let mut tmp2 = tmp1;
+//         tmp2.square_in_place();
+//         tmp2.mul_assign(&tmp1);
+//         tmp2.add_assign(&xr);
+//         xr = xl;
+//         xl = tmp2;
+//     }
+//
+//     xl
+// }
 
 /// This is our demo circuit for proving knowledge of the
 /// preimage of a MiMC hash invocation.
@@ -140,8 +140,7 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
 pub fn poreq_validate(proof: &Vec<u8>, public_input0: &Vec<u8>) -> bool{
     // We're going to use the Groth-Maller17 proving system.
     use ark_groth16::{
-        create_random_proof, generate_random_parameters, prepare_verifying_key,
-        verify_proof as raw_verify_proof,
+        generate_random_parameters,
     };
     use ark_std::test_rng;
 

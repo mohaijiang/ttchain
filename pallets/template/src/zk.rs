@@ -140,7 +140,7 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
 pub fn poreq_validate(proof: Vec<u8>, comm_c: Vec<u8>, comm_r_last: Vec<u8>) -> bool{
     // We're going to use the Groth-Maller17 proving system.
     use ark_groth16::{
-        create_random_proof, generate_random_parameters, prepare_verifying_key,
+        generate_random_parameters,
     };
     use ark_std::test_rng;
 
