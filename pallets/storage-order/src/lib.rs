@@ -56,6 +56,16 @@ pub mod pallet {
 	#[pallet::getter(fn order_count)]
 	pub(super) type OrderCount<T: Config> = StorageValue<_, u64, ValueQuery>;
 
+	/// 有效文件数
+	#[pallet::storage]
+	#[pallet::getter(fn valid_files_count)]
+	pub(super) type ValidFilesCount<T: Config> = StorageValue<_,u64,ValueQuery>;
+
+	/// 总副本数
+	#[pallet::storage]
+	#[pallet::getter(fn total_copies)]
+	pub(super) type TotalCopies<T: Config> = StorageValue<_,u64,ValueQuery>;
+
 	/// 存储订单信息
 	#[pallet::storage]
 	#[pallet::getter(fn order_info)]
@@ -284,10 +294,15 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 			}
 			if let StorageOrderStatus::Pending = &order_info.status {
 				order_info.status = StorageOrderStatus::Finished;
+				let count = ValidFilesCount::<T>::get();
+				ValidFilesCount::<T>::put(count + 1);
 			}
 			//订单信息副本数+1
 			order_info.replication = order_info.replication + 1;
 			OrderInfo::<T>::insert(order_index,order_info);
+			let replicationCount = TotalCopies::<T>::get();
+			TotalCopies::<T>::put(replicationCount + 1);
+
 		}
 	}
 
@@ -301,6 +316,14 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 			//订单信息副本数-1
 			if order_info.replication > 0 {
 				order_info.replication = order_info.replication - 1;
+				let replicationCount = TotalCopies::<T>::get();
+				TotalCopies::<T>::put(replicationCount - 1);
+			}
+			if order_info.replication == 0 {
+				if  ValidFilesCount::<T>::get() > 0{
+					let count = ValidFilesCount::<T>::get();
+					ValidFilesCount::<T>::put(count - 1);
+				}
 			}
 			OrderInfo::<T>::insert(order_index,order_info);
 		}
