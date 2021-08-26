@@ -259,7 +259,7 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 	}
 
 	/// 更新存储文件的comm_c,comm_r
-	fn update_storage_order_comm(order_index: &u64,comm_d: Vec<u8>, comm_r: Vec<u8>){
+	fn update_storage_order_public_input(order_index: &u64,public_input: Vec<u8>){
 		//获取订单
 		if let Some(mut order_info) = OrderInfo::<T>::get(order_index){
 			//校验文件状态 如果文件状态为待处理则改为已完成
@@ -268,11 +268,8 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 			}
 			//更新订单的comm_c 和 comm_r
 			order_info.replication = order_info.replication + 1;
-			if order_info.comm_d.is_empty(){
-				order_info.comm_d = comm_d;
-			}
-			if order_info.comm_r.is_empty(){
-				order_info.comm_r = comm_r;
+			if order_info.public_input.is_empty(){
+				order_info.public_input = public_input;
 			}
 			OrderInfo::<T>::insert(order_index,order_info);
 		}

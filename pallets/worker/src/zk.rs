@@ -137,7 +137,7 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
     }
 }
 
-pub fn poreq_validate(proof: Vec<u8>, comm_d: &Vec<u8>, comm_r: &Vec<u8>) -> bool{
+pub fn poreq_validate(proof: &Vec<u8>, public_input0: &Vec<u8>) -> bool{
     // We're going to use the Groth-Maller17 proving system.
     use ark_groth16::{
         create_random_proof, generate_random_parameters, prepare_verifying_key,
@@ -152,18 +152,8 @@ pub fn poreq_validate(proof: Vec<u8>, comm_d: &Vec<u8>, comm_r: &Vec<u8>) -> boo
     // Generate the MiMC round constants
     let constants = (0..MIMC_ROUNDS).map(|_| rng.gen()).collect::<Vec<_>>();
 
-    let xl: Fr = Fr::from_le_bytes_mod_order(comm_d.as_slice());
-    let xr: Fr = Fr::from_le_bytes_mod_order(comm_r.as_slice());
-    let image = mimc(xl, xr, &constants);
 
-    let input_vec = vec![image.clone()];
-    // proof_vec.truncate(0);
-    let mut input = vec![Vec::new(); 1];
-    input_vec.iter().enumerate().for_each(|(i, scalar)| {
-        scalar.write(&mut input[i]).unwrap();
-    });
-
-    let public_input = input.iter().map(|x| x.to_vec()).collect::<Vec<_>>();
+    let public_input = vec![public_input0.to_vec()];
 
     // Create parameters for our circuit
     let params = {
@@ -197,7 +187,7 @@ pub fn poreq_validate(proof: Vec<u8>, comm_d: &Vec<u8>, comm_r: &Vec<u8>) -> boo
     let mut vk_ic_slice = Vec::new();
     vk_ic.iter().for_each(|ic| vk_ic_slice.push(ic.to_vec()));
 
-    let valid_result = verify_proof::<Bn254>(vk_ic_slice, vk_encode, proof, public_input,)
+    let valid_result = verify_proof::<Bn254>(vk_ic_slice, vk_encode, proof.to_vec(), public_input,)
         .unwrap_or(false);
     valid_result
 }
