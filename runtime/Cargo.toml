@@ -92,6 +92,7 @@ std = [
     'storage-order/std',
     'storage-order-runtime-api/std',
     'worker/std',
+    'benefits/std',
     'worker-runtime-api/std',
     'primitives/std',
     'payment/std'
@@ -196,6 +197,11 @@ version = '3.0.0'
 [dependencies.storage-order-runtime-api]
 default-features = false
 path = '../pallets/storage-order/runtime-api'
+version = '3.0.0'
+
+[dependencies.benefits]
+default-features = false
+path = '../pallets/benefits'
 version = '3.0.0'
 
 [dependencies.worker]

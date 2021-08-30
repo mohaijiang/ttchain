@@ -466,8 +466,6 @@ impl pallet_staking::Config for Runtime {
 	type SlashCancelOrigin = frame_system::EnsureRoot<Self::AccountId>;
 	//给session提供的接口
 	type SessionInterface = Self;
-	//每个周期的花费
-	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	//准确估计下一个session的改变，或者做一个最好的猜测
 	type NextNewSession = Session;
 	//为每个验证者奖励的提名者的最大数目。
@@ -475,10 +473,10 @@ impl pallet_staking::Config for Runtime {
 	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
 	//权重信息
 	type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
-
 	type SPowerRatio = ();
 	type MarketStakingPotDuration = MarketStakingPotDuration;
 	// type MarketStakingPot = ();
+	type BenefitInterface = Benefits;
 }
 
 
@@ -522,7 +520,7 @@ parameter_types! {
 	pub const AverageIncomeLimit: u8 = 10;
 }
 
-/// storage order Runtime config
+/// worker Runtime config
 impl worker::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -545,6 +543,23 @@ impl payment::Config for Runtime {
 	type Currency = Balances;
 	type StorageOrderInterface = StorageOrder;
 	type WorkerInterface = Worker;
+}
+
+parameter_types! {
+    pub const BenefitReportWorkCost: Balance = 3 * DOLLARS;
+    pub const BenefitsLimitRatio: Perbill = Perbill::from_percent(1);
+    pub const BenefitMarketCostRatio: Perbill = Perbill::one();
+}
+
+///  benefits Runtime config
+impl benefits::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BenefitReportWorkCost = BenefitReportWorkCost;
+	type BenefitsLimitRatio = BenefitsLimitRatio;
+	type BenefitMarketCostRatio = BenefitMarketCostRatio;
+	type BondingDuration = BondingDuration;
+	type WeightInfo = benefits::weight::WeightInfo<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -595,6 +610,7 @@ construct_runtime!(
 		StorageOrder: storage_order::{Pallet, Call, Storage, Event<T>},
 		Worker: worker::{Pallet, Call, Storage, Event<T>},
 		Payment: payment::{Pallet, Call, Storage, Event<T>},
+		Benefits: benefits::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
