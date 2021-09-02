@@ -4,6 +4,16 @@ use codec::{Encode, Decode};
 use sp_std::vec::Vec;
 use sp_debug_derive::RuntimeDebug;
 
+
+
+pub const BASE_FEE_UPDATE_SLOT: u32 = 600;
+pub const BASE_FEE_UPDATE_OFFSET: u32 = 22;
+
+pub const PRICE_UPDATE_SLOT: u32 = 300;
+pub const PRICE_UPDATE_OFFSET: u32 = 10;
+pub const FILES_COUNT_REFERENCE: u64 = 20_000_000; // 20_000_000 / 50_000_000 = 40%
+
+
 #[derive( Encode, Decode, RuntimeDebug, PartialEq, Eq, Copy, Clone)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum StorageOrderStatus {
@@ -38,7 +48,7 @@ pub struct StorageOrder<AccountId, BlockNumber> {
     /// 存储期限
     pub storage_deadline: BlockNumber,
     /// 文件大小
-    pub file_size: u32,
+    pub file_size: u64,
     /// 块高
     pub block_number: BlockNumber,
     /// 订单状态
@@ -50,7 +60,7 @@ pub struct StorageOrder<AccountId, BlockNumber> {
 impl<AccountId, BlockNumber> StorageOrder<AccountId, BlockNumber> {
 
     pub fn new (index: u64, cid: Vec<u8>, account_id: AccountId, file_name: Vec<u8>,
-            price: u128, storage_deadline: BlockNumber, file_size: u32, block_number: BlockNumber) -> Self {
+            price: u128, storage_deadline: BlockNumber, file_size: u64, block_number: BlockNumber) -> Self {
         StorageOrder {
             index,
             cid,

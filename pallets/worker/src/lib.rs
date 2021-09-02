@@ -76,12 +76,12 @@ pub mod pallet {
 	/// 总存储
 	#[pallet::storage]
 	#[pallet::getter(fn total_storage)]
-	pub(super) type TotalStorage<T: Config> = StorageValue<_, u64, ValueQuery>;
+	pub(super) type TotalStorage<T: Config> = StorageValue<_, u128, ValueQuery>;
 
 	/// 已用存储
 	#[pallet::storage]
 	#[pallet::getter(fn used_storage)]
-	pub(super) type UsedStorage<T: Config> = StorageValue<_, u64, ValueQuery>;
+	pub(super) type UsedStorage<T: Config> = StorageValue<_, u128, ValueQuery>;
 
 	/// 矿工收益
 	#[pallet::storage]
@@ -91,12 +91,12 @@ pub mod pallet {
 	/// 矿工总存储
 	#[pallet::storage]
 	#[pallet::getter(fn miner_total_storage)]
-	pub(super) type MinerTotalStorage<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
+	pub(super) type MinerTotalStorage<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u128, ValueQuery>;
 
 	/// 矿工已用存储
 	#[pallet::storage]
 	#[pallet::getter(fn miner_used_storage)]
-	pub(super) type MinerUsedStorage<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
+	pub(super) type MinerUsedStorage<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u128, ValueQuery>;
 
 	/// 矿工订单数据
 	#[pallet::storage]
@@ -175,8 +175,8 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn register(
 			origin: OriginFor<T>,
-			total_storage: u64,
-			used_storage: u64
+			total_storage: u128,
+			used_storage: u128
 		) -> DispatchResult {
 			//判断是否签名正确
 			let who = ensure_signed(origin)?;
@@ -237,8 +237,8 @@ pub mod pallet {
 		pub fn proof_of_spacetime(
 			origin: OriginFor<T>,
 			orders: Vec<u64>,
-			total_storage: u64,
-			used_storage: u64
+			total_storage: u128,
+			used_storage: u128
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			//获得当前阶段
@@ -288,7 +288,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 
 	///更新个人存储
-	fn update_storage(account_id: &T::AccountId, total_storage: u64, used_storage: u64) {
+	fn update_storage(account_id: &T::AccountId, total_storage: u128, used_storage: u128) {
 		let old_miner_total_storage = MinerTotalStorage::<T>::get(account_id);
 		let old_miner_used_storage = MinerUsedStorage::<T>::get(account_id);
 		//添加矿工总存储
@@ -327,10 +327,10 @@ impl<T: Config> Pallet<T> {
 		//维护矿工信息
 		Miners::<T>::put(miners);
 		//更新总存储
-		let total_storage = MinerTotalStorage::<T>::iter_values().sum::<u64>();
+		let total_storage = MinerTotalStorage::<T>::iter_values().sum::<u128>();
 		TotalStorage::<T>::put(total_storage);
 		//更新总使存储
-		let used_storage = MinerUsedStorage::<T>::iter_values().sum::<u64>();
+		let used_storage = MinerUsedStorage::<T>::iter_values().sum::<u128>();
 		UsedStorage::<T>::put(used_storage);
 	}
 
@@ -425,5 +425,9 @@ impl<T: Config> WorkerInterface for Pallet<T> {
 				MinerIncome::<T>::insert(account_id,income);
 			}
 		}
+	}
+
+	fn get_total_and_used() -> (u128, u128) {
+		(Self::total_storage(), Self::used_storage())
 	}
 }

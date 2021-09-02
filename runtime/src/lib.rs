@@ -501,6 +501,18 @@ impl pallet_authority_discovery::Config for Runtime {}
 parameter_types! {
 	pub const OrderWaitingTime: BlockNumber = 30 * MINUTES;
 	pub const PerByteDayPrice: u64 = 10;
+	// 文件基础费用
+	pub const FileBaseInitFee: Balance = 0;
+	// 文件个数费用
+	pub const FilesCountInitPrice: Balance = 1 * MICRO;
+	// 文件每天价格费用 每MB每天费用
+	pub const FileSizeInitPrice: Balance = 10 * NANO;
+	// 存储参考比率. reported_files_size / total_capacity
+	pub const StorageReferenceRatio: (u128, u128) = (25, 100); // 25/100 = 25%
+	// 价格上升比率
+	pub StorageIncreaseRatio: Perbill = Perbill::from_rational_approximation(1u64, 100000);
+	// 价格下浮比率
+	pub StorageDecreaseRatio: Perbill = Perbill::from_rational_approximation(1u64, 100000);
 }
 
 /// storage order Runtime config
@@ -512,6 +524,14 @@ impl storage_order::Config for Runtime {
 	type BalanceToNumber = ConvertInto;
 	type BlockNumberToNumber = ConvertInto;
 	type PaymentInterface = Payment;
+
+	type FileBaseInitFee = FileBaseInitFee;
+	type FilesCountInitPrice = FilesCountInitPrice;
+	type FileSizeInitPrice = FileSizeInitPrice;
+	type StorageReferenceRatio = StorageReferenceRatio;
+	type StorageIncreaseRatio = StorageIncreaseRatio;
+	type StorageDecreaseRatio = StorageDecreaseRatio;
+	type WorkerInterface = Worker;
 }
 
 parameter_types! {
@@ -531,7 +551,11 @@ impl worker::Config for Runtime {
 }
 
 parameter_types! {
-	pub const NumberOfIncomeMiner: usize = 10;
+	pub const NumberOfIncomeMiner: usize = 4;
+	//文件质押比率 72%
+	pub const StakingRatio: Perbill = Perbill::from_percent(72);
+    //文件存储比率 18%
+	pub const StorageRatio: Perbill = Perbill::from_percent(18);
 }
 
 /// Configure the payment in pallets/payment.
@@ -543,6 +567,9 @@ impl payment::Config for Runtime {
 	type Currency = Balances;
 	type StorageOrderInterface = StorageOrder;
 	type WorkerInterface = Worker;
+	type StakingRatio = StakingRatio;
+	type StorageRatio = StorageRatio;
+	type BenefitInterface = Benefits;
 }
 
 parameter_types! {

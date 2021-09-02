@@ -5,14 +5,18 @@
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
 
 pub use pallet::*;
-use sp_std::vec::Vec;
-use frame_support::{traits::{Currency,ExistenceRequirement,ExistenceRequirement::{AllowDeath, KeepAlive}},PalletId};
-use sp_runtime::{traits::AccountIdConversion};
-use frame_support::dispatch::DispatchResult;
+use sp_std::convert::TryInto;
+use sp_runtime::traits::Zero;
+use frame_support::{ traits::{ Currency, ExistenceRequirement},
+					 PalletId, dispatch::DispatchResult, pallet_prelude::*};
+use frame_system::pallet_prelude::*;
+use sp_runtime::{traits::{AccountIdConversion, Saturating}, DispatchError};
+use sp_runtime::Perbill;
 use frame_support::sp_runtime::traits::Convert;
 use primitives::p_payment::*;
 use primitives::p_storage_order::*;
 use primitives::p_worker::*;
+use primitives::p_benefit::BenefitInterface;
 
 #[cfg(test)]
 mod mock;
@@ -26,6 +30,8 @@ mod benchmarking;
 pub(crate) const LOG_TARGET: &'static str = "ttchain::payment";
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+
 
 // syntactic sugar for logging.
 #[macro_export]
@@ -41,11 +47,9 @@ macro_rules! log {
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
-	use frame_system::pallet_prelude::*;
-	use frame_support::traits::Currency;
 	use super::*;
-	use frame_support::sp_runtime::traits::Convert;
+
+
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -57,7 +61,7 @@ pub mod pallet {
 
 		/// 金额转换数字
 		type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
-		// 数字转金额
+		/// 数字转金额
 		type NumberToBalance: Convert<u128,BalanceOf<Self>>;
 		/// 支付费用和持有余额的货币。
 		type Currency: Currency<Self::AccountId>;
@@ -65,6 +69,12 @@ pub mod pallet {
 		type StorageOrderInterface: StorageOrderInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber>;
 		/// worker接口
 		type WorkerInterface:  WorkerInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber,Balance = BalanceOf<Self>>;
+		/// 质押池分配比率
+		type StakingRatio: Get<Perbill>;
+		/// 存储池分配比率
+		type StorageRatio: Get<Perbill>;
+		/// 折扣j接口
+		type BenefitInterface: BenefitInterface<Self::AccountId, BalanceOf<Self>, NegativeImbalanceOf<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -79,15 +89,16 @@ pub mod pallet {
 	// https://substrate.dev/docs/en/knowledgebase/runtime/storage#declaring-storage-items
 	pub type Something<T> = StorageValue<_, u32>;
 
-	/// 订单金额
+	/// 订单支付信息
 	#[pallet::storage]
 	#[pallet::getter(fn order_price)]
-	pub(super) type OrderPrice<T: Config> = StorageMap<_, Twox64Concat, u64, BalanceOf<T>, OptionQuery>;
+	pub(super) type OrderPrice<T: Config> = StorageMap<_, Twox64Concat, u64, PayoutInfo<BalanceOf<T>,T::BlockNumber>, OptionQuery>;
 
-	/// 订单到期记录
+
+	/// 订单金额拆分数据暂存记录
 	#[pallet::storage]
-	#[pallet::getter(fn order_deadline)]
-	pub(super) type OrderDeadline<T: Config> = StorageMap<_,Twox64Concat,T::BlockNumber,Vec<u64>,OptionQuery>;
+	#[pallet::getter(fn order_calculate_block)]
+	pub(super) type OrderSplitAmount<T: Config> = StorageMap<_,Twox64Concat, u64 , (BalanceOf<T>,BalanceOf<T>,BalanceOf<T>), OptionQuery>;
 
 	/// 矿工待领取金额
 	#[pallet::storage]
@@ -104,109 +115,16 @@ pub mod pallet {
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
 
-		/// 订单清算
-		ClearOrder(u64),
+		/// 订单清算成功
+		CalculateSuccess(u64),
 
 		/// 领取收益
-		Withdrawal(T::AccountId, BalanceOf<T>, BalanceOf<T>),
+		Withdrawal(T::AccountId, BalanceOf<T>),
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
-
-			// let generation  = 100 as u32;
-
-			//判断当前块高是否大于订单等待时长
-			let order_deadline_set = OrderDeadline::<T>::get(now).unwrap_or(Vec::<u64>::new());
-			for order_index in &order_deadline_set {
-				log!(info, "清算订单 {:?}",order_index);
-				Self::deposit_event(Event::ClearOrder(*order_index));
-				//TODO...校验文件状态 如果文件状态为完成，进行清算
-				let order_opt = T::StorageOrderInterface::get_storage_order(order_index);
-				//校验订单是否存在
-				if order_opt.is_none() {
-					continue;
-				}
-
-				let order_info = order_opt.unwrap();
-
-				// 校验订单状态
-				//校验文件状态 如果文件状态为取消状态则不能进行上报
-				if let StorageOrderStatus::Finished = &order_info.status {
-					// 订单状态完成，继续清算
-				}else {
-					continue;
-				}
-
-				//获取订单金额
-				match OrderPrice::<T>::get(order_index) {
-					Some(price) => {
-
-						// 世代订单应发放金额逻辑，备用
-						// // 订单创建区块
-						// let order_create_block_number = 0 as u128;
-						// // 订单存储时长
-						// let duration = 100 as u128;
-						// // 上一次世代区块
-						// let last_generation = now - generation;
-						// // 订单完成区块
-						// let order_deadline = 128 as u128;
-						// //本次区块占比
-						// let mut generation_price = 0 as u128;
-						// if order_create_block_number < last_generation {	// 前世代创建订单
-						// 	if order_deadline <= now {		//当前世代完成订单
-						// 		if order_deadline > last_generation {
-						// 			generation_price = price * (order_deadline - last_generation) / duration;
-						// 		}
-						// 	}else {  //当前世代无法完成订单
-						// 		generation_price =  price * (now - order_create_block_number) / duration
-						// 	}
-						// } else { 	// 当前世代创建订单
-						// 	if order_deadline <= now {		//当前世代完成订单
-						// 		generation_price = price;
-						// 	}else {  //当前世代无法完成订单
-						// 		generation_price = price * generation / duration;
-						// 	}
-						// }
-
-
-						//获取订单矿工集合
-						let mut miners = T::WorkerInterface::order_miners(*order_index);
-						//截取前10个订单完成者，有权利分润
-						miners.truncate(T::NumberOfIncomeMiner::get());
-						// 计算实际完成者数量
-						let workers = miners.len();
-
-						if workers == 0 {
-							// 订单无完成者,不进行清算。
-							// 未定时上报时空证明，导致worker模块踢出此订单矿工权利，使订单清算时，不能找到收益者
-							// TODO... 质押收益处理需要重新考虑逻辑
-							continue;
-						}
-
-						//总订单金额u128
-						let price_u128 = T::BalanceToNumber::convert(price.clone());
-
-						// 计算每人可分配金额
-						let per_worker_income = price_u128/(workers as u128);
- 						// 矿工循环，计算收益
-						for mut miner in &miners {
-
-							match MinerPrice::<T>::get(miner) {
-								Some(t) => {
-									let income_after = T::NumberToBalance::convert(T::BalanceToNumber::convert(t)+ per_worker_income);
-									MinerPrice::<T>::insert(miner,income_after);
-								}
-								None => {
-									MinerPrice::<T>::insert(miner, T::NumberToBalance::convert(per_worker_income));
-								}
-							}
-						}
-					}
-					None => {}
-				}
-			}
 			0
 		}
 	}
@@ -219,7 +137,13 @@ pub mod pallet {
 		/// Errors should have helpful documentation associated with them.
 		StorageOverflow,
 		/// 订单金额已经配置
-		StorageOrderPriceSetted
+		StorageOrderPriceSetted,
+		/// 用户余额不足
+		InsufficientCurrency,
+		/// 订单支付信息不存在
+		OrderPayoutInfoNotExist,
+		/// 订单不在清算报酬期
+		NotInRewardPeriod
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -227,6 +151,63 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
+
+		/// Calculate the reward for a order
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn calculate_reward(
+			origin: OriginFor<T>,
+			order_index: u64,
+		) -> DispatchResult {
+			let liquidator = ensure_signed(origin)?;
+			// 校验订单是否存在
+			ensure!(OrderPrice::<T>::contains_key(&order_index), Error::<T>::OrderPayoutInfoNotExist);
+			let mut payout_info = OrderPrice::<T>::get(&order_index).unwrap();
+			let curr_bn = <frame_system::Pallet<T>>::block_number();
+			// 校验订单是否清算完成
+			ensure!(payout_info.calculate <= payout_info.deadline, Error::<T>::NotInRewardPeriod);
+			// 获得当前计算区块
+			let calculated_block = curr_bn.min(payout_info.deadline);
+			// 获得支付人数
+			let miners = T::WorkerInterface::order_miners(order_index);
+			let target_reward_count = miners.len().min(T::NumberOfIncomeMiner::get()) as u32;
+
+			if target_reward_count > 0 {
+				// 计算当前支付金额
+				let reward_count  = TryInto::<T::BlockNumber>::try_into(target_reward_count).ok().unwrap();
+				let one_payout_amount = (Perbill::from_rational(calculated_block - payout_info.calculate,
+																(payout_info.deadline - payout_info.calculate) * reward_count)
+					* payout_info.amount).saturating_sub(1u32.into());
+				let mut rewarded_amount: BalanceOf<T> = Zero::zero();
+				let mut rewarded_count: usize = 0;
+				// 清算数据添加
+				for miner in &miners {
+					if Self::maybe_reward_merchant(&miner, &one_payout_amount) {
+						rewarded_amount += one_payout_amount;
+						rewarded_count += 1;
+						match MinerPrice::<T>::get(miner) {
+							Some(t) => {
+								let income_after = t + one_payout_amount;
+								MinerPrice::<T>::insert(miner,income_after);
+							}
+							None => {
+								MinerPrice::<T>::insert(miner, one_payout_amount);
+							}
+						}
+						if rewarded_count == T::NumberOfIncomeMiner::get() {
+							break;
+						}
+					}
+				}
+
+				// 更新当前订单支付数据
+				payout_info.calculate = calculated_block;
+				payout_info.amount = payout_info.amount.saturating_sub(rewarded_amount);
+				OrderPrice::<T>::insert(&order_index,payout_info);
+			}
+			//todo 判断当前订单是否已经完成
+			Self::deposit_event(Event::CalculateSuccess(order_index));
+			Ok(())
+		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn withdrawal(
@@ -241,11 +222,11 @@ pub mod pallet {
 				let amount :BalanceOf<T> = price_opt.unwrap();
 				if T::BalanceToNumber::convert(amount) > 0 {
 					//从资金池中进行转账
-					&Self::withdrawal_(&who,amount)?;
+					T::Currency::transfer(&Self::storage_pool(),&who,amount, ExistenceRequirement::AllowDeath);
 					// 记录累计收益
 					T::WorkerInterface::record_miner_income(&who,amount);
 					MinerPrice::<T>::remove(&who);
-					Self::deposit_event(Event::Withdrawal(who, amount, Self::pot()));
+					Self::deposit_event(Event::Withdrawal(who, amount));
 				}
 			}
 			Ok(())
@@ -256,18 +237,57 @@ pub mod pallet {
 const PALLET_ID: PalletId = PalletId(*b"ttchain!");
 
 impl <T:Config> Pallet<T> {
-	/// The account ID that holds the Charity's funds
-	pub fn account_id() -> T::AccountId {
-		PALLET_ID.into_account()
+
+	/// StakingPod
+	pub fn staking_pool() -> T::AccountId { PALLET_ID.into_sub_account(b"staking") }
+	/// StoragePod
+	pub fn storage_pool() -> T::AccountId { PALLET_ID.into_sub_account(b"storage") }
+	/// ReservedPod
+	pub fn reserved_pool() -> T::AccountId { PALLET_ID.into_sub_account(b"reserved") }
+	/// temporaryPod
+	pub fn temporary_pool() -> T::AccountId { PALLET_ID.into_sub_account(b"temporary") }
+
+
+	// 将订单分到不同的模块
+	// Currently
+	// 10% into reserved pool
+	// 72% into staking pool
+	// 18% into storage pool
+	fn split_into_reserved_and_storage_and_staking_pool(who: &T::AccountId, value: BalanceOf<T>, base_fee: BalanceOf<T>, tips: BalanceOf<T>) -> (BalanceOf<T>, BalanceOf<T> ,BalanceOf<T>) {
+		// Split the original amount into three parts
+		let staking_amount = T::StakingRatio::get() * value;
+		let storage_amount = T::StorageRatio::get() * value;
+		let reserved_amount = value - staking_amount - storage_amount;
+
+		// Add the tips into storage amount
+		let storage_amount = storage_amount + tips;
+
+		// Check the discount for the reserved amount, reserved_amount = max(0, reserved_amount - discount_amount)
+		let discount_amount = T::BenefitInterface::get_market_funds_ratio(who) * value;
+		let reserved_amount = reserved_amount.saturating_sub(discount_amount);
+		let reserved_amount = reserved_amount.saturating_add(base_fee);
+		(staking_amount, storage_amount, reserved_amount)
+	}
+	// 将金额存入存储，质押，保留池中
+	fn transfer_reserved_and_storage_and_staking_pool(who: &T::AccountId, staking_amount: BalanceOf<T>, storage_amount: BalanceOf<T>, reserved_amount: BalanceOf<T>, liveness: ExistenceRequirement) -> DispatchResult {
+		T::Currency::transfer(&who, &Self::reserved_pool(), reserved_amount, liveness)?;
+		T::Currency::transfer(&who, &Self::staking_pool(), staking_amount, liveness)?;
+		T::Currency::transfer(&who, &Self::storage_pool(), storage_amount.clone(), liveness)?;
+		Ok(())
 	}
 
-	/// The Charity's balance
-	fn pot() -> BalanceOf<T> {
-		T::Currency::free_balance(&Self::account_id())
-	}
-
-	fn withdrawal_(account_id: &T::AccountId,amount: BalanceOf<T>) -> DispatchResult{
-		T::Currency::transfer(&Self::account_id(),account_id,amount, ExistenceRequirement::AllowDeath)
+	// 判断是否可以领取奖励
+	fn maybe_reward_merchant(who: &T::AccountId, amount: &BalanceOf<T>, ) -> bool {
+		// 查询当前市场活动金额
+		let (collateral, _) = T::BenefitInterface::get_collateral_and_reward(who);
+		// 当带领取金额小于活动金额时则可以领取订单结算金额
+		if let Some(reward) = MinerPrice::<T>::get(who) {
+			if (reward + *amount) <= collateral {
+				T::BenefitInterface::update_reward(&who, reward + *amount);
+				return true;
+			}
+		}
+		false
 	}
 }
 
@@ -277,40 +297,71 @@ impl<T: Config> PaymentInterface for Pallet<T> {
 	type BlockNumber = T::BlockNumber;
 	type Balance = BalanceOf<T>;
 
-	fn pay_order(order_index: &u64, order_price: &Self::Balance,deadline: &Self::BlockNumber, account_id: &Self::AccountId) -> DispatchResult{
-
+	fn pay_order(order_index: &u64, file_base_price: Self::Balance, order_price: Self::Balance, tips: Self::Balance,deadline: Self::BlockNumber, account_id: &Self::AccountId) -> DispatchResult{
+		//校验账户余额
+		ensure!(T::Currency::free_balance(&account_id) >= (file_base_price + order_price + tips), Error::<T>::InsufficientCurrency);
+		// 将订单进行拆分并进行折扣计算 返回存储金额，质押金额，保留金额
+		let (staking_amount, storage_amount, reserved_amount) =
+			Self::split_into_reserved_and_storage_and_staking_pool(
+				&account_id,
+				order_price,
+				file_base_price,
+				tips);
 		match OrderPrice::<T>::get(order_index) {
-			// Return an error if the value has not been set.
+			// 没有订单则为新订单支付
 			None => {
-				// 转账用户订单金额
-				T::Currency::transfer(&account_id, &Self::account_id(), *order_price, ExistenceRequirement::AllowDeath)?;
+				// 存储订单金额到暂存池中
+				T::Currency::transfer(
+					&account_id,
+					&Self::temporary_pool(),
+					(staking_amount + storage_amount + reserved_amount),
+					ExistenceRequirement::AllowDeath)?;
+				// 记录金额分割缓存数据
+				OrderSplitAmount::<T>::insert(order_index,(staking_amount, storage_amount, reserved_amount));
+				// 获得当前区块
+				let curr_bn = <frame_system::Pallet<T>>::block_number();
 				// 记录订单金额
-				OrderPrice::<T>::insert(order_index,order_price);
-				//记录订单到期区块
-				let mut order_deadline_set = OrderDeadline::<T>::get(&deadline).unwrap_or(Vec::<u64>::new());
-				order_deadline_set.push(*order_index);
-				OrderDeadline::<T>::insert(&deadline,order_deadline_set);
+				OrderPrice::<T>::insert(order_index,PayoutInfo {
+					amount: storage_amount,
+					deadline,
+					calculate: curr_bn
+				});
 				Ok(())
 			},
-			Some(old) => {
-            	// 已有订单金额，理论上不可能，暂时不修改数据
+			// 已有订单金额，则进行续费操作
+			Some(mut payout_info) => {
+				// 将订单金额拆分存入不同存储池中
+				Self::transfer_reserved_and_storage_and_staking_pool(
+					&account_id,
+					staking_amount,
+					storage_amount,
+					reserved_amount,
+					ExistenceRequirement::AllowDeath)?;
+				// 更新订单支出数据
+				payout_info.amount = payout_info.amount + storage_amount;
+				// 更新订单到期数据
+				payout_info.deadline = deadline;
+				OrderPrice::<T>::insert(order_index,payout_info);
+				// 更新订单金额信息
 				Err(Error::<T>::NoneValue)?
 			},
 		}
 	}
 
 	fn cancel_order(order_index: &u64,order_price: &u128,deadline: &Self::BlockNumber, account_id: &Self::AccountId){
-		match OrderPrice::<T>::get(order_index) {
-			Some(old) => {
-				let dispatch_result = T::Currency::transfer(&Self::account_id(),&account_id, T::NumberToBalance::convert(*order_price), ExistenceRequirement::AllowDeath);
+		match OrderSplitAmount::<T>::get(order_index) {
+			Some((staking_amount , storage_amount , reserved_amount)) => {
+				let dispatch_result = T::Currency::transfer(
+					&Self::temporary_pool(),
+					&account_id,
+					(staking_amount + storage_amount + reserved_amount),
+					ExistenceRequirement::AllowDeath);
 				if dispatch_result.is_ok() {
-					//记录订单到期区块
-					let mut order_deadline_set = OrderDeadline::<T>::get(&deadline).unwrap_or(Vec::<u64>::new());
-					order_deadline_set.retain(|&x| x != *order_index);
-					OrderDeadline::<T>::insert(&deadline,order_deadline_set);
+					//删除订单支出数据
 					OrderPrice::<T>::remove(order_index);
+					//删除订单金额拆分数据暂存记录
+					OrderSplitAmount::<T>::remove(order_index);
 				}
-
 			},
 			None => ()
 		}
