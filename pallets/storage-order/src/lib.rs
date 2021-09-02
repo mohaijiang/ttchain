@@ -459,6 +459,23 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 		OrderInfo::<T>::get(order_index)
 	}
 
+	/// 更新存储文件的comm_c,comm_r
+	fn update_storage_order_public_input(order_index: &u64,public_input: Vec<u8>){
+		//获取订单
+		if let Some(mut order_info) = OrderInfo::<T>::get(order_index){
+			//校验文件状态 如果文件状态为待处理则改为已完成
+			if let StorageOrderStatus::Canceled = &order_info.status {
+				return;
+			}
+			//更新订单的comm_c 和 comm_r
+			order_info.replication = order_info.replication + 1;
+			if order_info.public_input.is_empty(){
+				order_info.public_input = public_input;
+			}
+			OrderInfo::<T>::insert(order_index,order_info);
+		}
+	}
+
 	fn add_order_replication(order_index: &u64) {
 		//获取订单
 		if let Some(mut order_info) = OrderInfo::<T>::get(order_index){
@@ -490,9 +507,10 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 			//订单信息副本数-1
 			if order_info.replication > 0 {
 				order_info.replication = order_info.replication - 1;
-				let replication_count = TotalCopies::<T>::get();
-				TotalCopies::<T>::put(replication_count - 1);
-			}else if order_info.replication == 0 {
+				let replicationCount = TotalCopies::<T>::get();
+				TotalCopies::<T>::put(replicationCount - 1);
+			}
+			if order_info.replication == 0 {
 				if  ValidFilesCount::<T>::get() > 0{
 					let count = ValidFilesCount::<T>::get();
 					ValidFilesCount::<T>::put(count - 1);
