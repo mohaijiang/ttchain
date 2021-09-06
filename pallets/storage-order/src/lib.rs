@@ -99,6 +99,8 @@ pub mod pallet {
 		OrderFinish(u64),
 		/// 订单取消
 		OrderCanceled(u64, Vec<u8>),
+		/// 删除订单
+		OrderDeleted(u64)
 	}
 
 	#[pallet::hooks]
@@ -150,6 +152,8 @@ pub mod pallet {
 		OrderDoesNotExist,
 		/// 订单价格错误
 		OrderPriceError,
+		/// 删除订单索引错误
+		DeleteOrderError
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -157,6 +161,22 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
+
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn delete_order(origin: OriginFor<T>,order_index: u64) -> DispatchResult {
+			ensure_root(origin)?;
+			//获取订单长度
+			let order_count = OrderCount::<T>::get();
+			ensure!( order_index  <= order_count - 1 , Error::<T>::DeleteOrderError);
+			if let Some(mut order_info) = OrderInfo::<T>::get(order_index) {
+				OrderInfo::<T>::remove(order_index);
+				//发送删除订单事件
+				Self::deposit_event(Event::OrderDeleted(order_index));
+			} else {
+				ensure!( true , Error::<T>::OrderDoesNotExist);
+			}
+			Ok(())
+		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn create_order(
