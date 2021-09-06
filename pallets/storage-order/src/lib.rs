@@ -15,13 +15,21 @@ use sp_runtime::traits::Convert;
 use primitives::p_storage_order::*;
 use primitives::p_payment::*;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use super::*;
 
-	type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -106,6 +114,7 @@ pub mod pallet {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 			//判断当前块高是否大于订单等待时长
 			if now >= T::OrderWaitingTime::get() {
+
 				//获得等待时长之前的块索引
 				let block_index = now - T::OrderWaitingTime::get();
 				let order_set = OrderSetOfBlock::<T>::get(&block_index).unwrap_or(Vec::<u64>::new());

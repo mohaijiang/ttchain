@@ -89,7 +89,7 @@ pub mod pallet {
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn do_something(origin: OriginFor<T>, something: u32,proof_encode: Vec<u8>,comm_c: Vec<u8>,comm_r_last: Vec<u8>) -> DispatchResult {
+		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
 			// https://substrate.dev/docs/en/knowledgebase/runtime/origin
@@ -98,14 +98,8 @@ pub mod pallet {
 			// Update storage.
 			<Something<T>>::put(something);
 
-			let validate_result = poreq_validate(proof_encode,comm_c,comm_r_last);
-
-			if validate_result {
-				// Emit an event.
-				Self::deposit_event(Event::SomethingStored(something, who));
-			}else {
-				Self::deposit_event(Event::ValidateFail(something, who));
-			}
+			// Emit an event.
+			Self::deposit_event(Event::SomethingStored(something, who));
 
 			// Return a successful DispatchResultWithPostInfo
 			Ok(())

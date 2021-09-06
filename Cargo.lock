@@ -4531,6 +4531,7 @@ dependencies = [
  "frame-system",
  "hex",
  "log",
+ "pallet-balances",
  "parity-scale-codec",
  "rand 0.8.4",
  "serde",
@@ -7901,6 +7902,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-balances",
  "parity-scale-codec",
  "payment",
  "serde",
@@ -7910,6 +7912,7 @@ dependencies = [
  "sp-runtime",
  "sp-std 3.0.0 (git+https://gitee.com/mohaijiang/substrate.git?tag=monthly-2021-07)",
  "ttc-primitives",
+ "worker",
 ]
 
 [[package]]

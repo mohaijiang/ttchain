@@ -21,3 +21,10 @@ fn correct_error_for_none_value() {
 		);
 	});
 }
+
+#[test]
+fn donate_for_default_value(){
+	new_test_ext().execute_with(|| {
+		assert_ok!(TemplateModule::donate(Origin::signed(1),1000));
+	})
+}

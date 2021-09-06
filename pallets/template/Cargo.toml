@@ -100,3 +100,8 @@ ark-groth16 = { version = "0.3", default-features = false }
 
 # zkMega
 arkworks = { package = "zkmega-arkworks", path = "../../crates/curve" }
+
+
+
+[dev-dependencies]
+pallet-balances = { git = 'https://gitee.com/mohaijiang/substrate.git',tag = 'monthly-2021-07',version = '3.0.0'}

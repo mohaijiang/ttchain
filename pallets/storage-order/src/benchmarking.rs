@@ -8,17 +8,20 @@ use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_sui
 use crate::Pallet as Template;
 
 benchmarks! {
-	do_something {
+	create_order {
 		let s in 0 .. 100;
 		let caller: T::AccountId = whitelisted_caller();
-	}: _(RawOrigin::Signed(caller), s)
+		let balance = BalanceOf::<T>::from(12u32);
+		let bl = T::BlockNumber::from(10u32);
+		let size = 10u32;
+	}: _(RawOrigin::Signed(caller),  Vec::from("abc"), Vec::from("abc"),balance,bl,size)
 	verify {
-		assert_eq!(Something::<T>::get(), Some(s));
+		assert_eq!(OrderInfo::<T>::get(s as u64).map(|x| x.index),Some(s as u64));
 	}
 }
 
 impl_benchmark_test_suite!(
 	Template,
-	crate::mock::new_test_ext(),
+	crate::mock::ExtBuilder::default().build(),
 	crate::mock::Test,
 );
