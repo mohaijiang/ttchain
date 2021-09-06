@@ -167,10 +167,7 @@ pub mod pallet {
 			ensure_root(origin)?;
 			//获取订单长度
 			let order_count = OrderCount::<T>::get();
-			ensure!( order_index  > order_count - 1 , Error::<T>::DeleteOrderError);
-			OrderInfo::<T>::remove(order_index);
-			//发送删除订单事件
-			Self::deposit_event(Event::OrderDeleted(order_index));
+			ensure!( order_index  <= order_count - 1 , Error::<T>::DeleteOrderError);
 			if let Some(mut order_info) = OrderInfo::<T>::get(order_index) {
 				OrderInfo::<T>::remove(order_index);
 				//发送删除订单事件
