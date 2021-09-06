@@ -23,7 +23,6 @@ runtime-benchmarks = [
     'frame-system/runtime-benchmarks',
     'hex-literal',
     'pallet-balances/runtime-benchmarks',
-    'pallet-template/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
     'storage-order/runtime-benchmarks',
@@ -75,7 +74,6 @@ std = [
     'pallet-grandpa/std',
     'pallet-randomness-collective-flip/std',
     'pallet-sudo/std',
-    'pallet-template/std',
     'pallet-timestamp/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
     'pallet-transaction-payment/std',
@@ -85,7 +83,6 @@ std = [
     'sp-inherents/std',
     'sp-offchain/std',
     'sp-runtime/std',
-    'sp-session/std',
     'sp-std/std',
     'sp-transaction-pool/std',
     'sp-version/std',
@@ -179,10 +176,6 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
-[dependencies.pallet-template]
-default-features = false
-path = '../pallets/template'
-version = '3.0.0'
 
 [dependencies.payment]
 default-features = false
@@ -309,8 +302,6 @@ default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
-
-sp-session = { default-features = false, version = "3.0.0" }
 
 
 [dependencies.pallet-session]

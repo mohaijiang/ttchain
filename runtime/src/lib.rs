@@ -312,11 +312,6 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-/// Configure the pallet-template in pallets/template.
-impl pallet_template::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-}
 
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
@@ -510,9 +505,9 @@ parameter_types! {
 	// 存储参考比率. reported_files_size / total_capacity
 	pub const StorageReferenceRatio: (u128, u128) = (25, 100); // 25/100 = 25%
 	// 价格上升比率
-	pub StorageIncreaseRatio: Perbill = Perbill::from_rational_approximation(1u64, 100000);
+	pub StorageIncreaseRatio: Perbill = Perbill::from_rational(1u64, 100000);
 	// 价格下浮比率
-	pub StorageDecreaseRatio: Perbill = Perbill::from_rational_approximation(1u64, 100000);
+	pub StorageDecreaseRatio: Perbill = Perbill::from_rational(1u64, 100000);
 }
 
 /// storage order Runtime config
@@ -633,7 +628,6 @@ construct_runtime!(
 
 		//ttc-pallet
 		// Include the custom logic from the pallet-template in the runtime.
-		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
 		StorageOrder: storage_order::{Pallet, Call, Storage, Event<T>},
 		Worker: worker::{Pallet, Call, Storage, Event<T>},
 		Payment: payment::{Pallet, Call, Storage, Event<T>},

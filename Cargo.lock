@@ -646,7 +646,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 3.0.0 (git+https://gitee.com/mohaijiang/substrate.git?tag=monthly-2021-07)",
  "ttc-primitives",
 ]
 
@@ -4072,7 +4072,6 @@ dependencies = [
  "pallet-staking",
  "pallet-staking-reward-curve",
  "pallet-sudo",
- "pallet-template",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -4508,9 +4507,9 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
+ "sp-std 3.0.0 (git+https://gitee.com/mohaijiang/substrate.git?tag=monthly-2021-07)",
  "sp-storage",
  "sp-tracing",
- "sp-std 3.0.0 (git+https://gitee.com/mohaijiang/substrate.git?tag=monthly-2021-07)",
  "static_assertions",
  "substrate-test-utils",
  "ttc-primitives",
@@ -4539,36 +4538,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std 3.0.0 (git+https://gitee.com/mohaijiang/substrate.git?tag=monthly-2021-07)",
-]
-
-[[package]]
-name = "pallet-template"
-version = "3.0.0"
-dependencies = [
- "ark-bls12-377",
- "ark-bls12-381",
- "ark-bn254",
- "ark-bw6-761",
- "ark-cp6-782",
- "ark-ec",
- "ark-ff",
- "ark-groth16",
- "ark-relations",
- "ark-serialize",
- "ark-std",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hex",
- "log",
- "parity-scale-codec",
- "rand 0.8.4",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 3.0.0 (git+https://gitee.com/mohaijiang/substrate.git?tag=monthly-2021-07)",
- "zkmega-arkworks",
 ]
 
 [[package]]

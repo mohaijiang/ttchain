@@ -510,6 +510,7 @@ impl<
 				let diff = value - unlocking_balance;
 
 				unlocking_balance += diff;
+				unlocking_balance += diff;
 				self.active += diff;
 				last.value -= diff;
 			}

@@ -16,7 +16,7 @@ use primitives::p_storage_order::*;
 use primitives::p_payment::*;
 use primitives::p_worker::WorkerInterface;
 use sp_runtime::Perbill;
-use frame_system::{self as system, ensure_signed, ensure_root};
+use frame_system::{self as system};
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as system::Config>::AccountId>>::Balance;
 
@@ -320,7 +320,7 @@ impl<T: Config> Pallet<T> {
 						order_info.status = StorageOrderStatus::Canceled;
 						OrderInfo::<T>::insert(order_index,order_info.clone());
 						// 退款
-						T::PaymentInterface::cancel_order(&order_index,&order_info.price,&order_info.storage_deadline,&order_info.account_id);
+						T::PaymentInterface::cancel_order(&order_index,&order_info.account_id);
 						//发送订单取消时间事件
 						Self::deposit_event(Event::OrderCanceled(order_index.clone() , order_info.cid));
 					}
@@ -507,8 +507,8 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 			//订单信息副本数-1
 			if order_info.replication > 0 {
 				order_info.replication = order_info.replication - 1;
-				let replicationCount = TotalCopies::<T>::get();
-				TotalCopies::<T>::put(replicationCount - 1);
+				let replication_count = TotalCopies::<T>::get();
+				TotalCopies::<T>::put(replication_count - 1);
 			}
 			if order_info.replication == 0 {
 				if  ValidFilesCount::<T>::get() > 0{

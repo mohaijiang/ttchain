@@ -10,7 +10,7 @@ use sp_runtime::traits::Zero;
 use frame_support::{ traits::{ Currency, ExistenceRequirement},
 					 PalletId, dispatch::DispatchResult, pallet_prelude::*};
 use frame_system::pallet_prelude::*;
-use sp_runtime::{traits::{AccountIdConversion, Saturating}, DispatchError};
+use sp_runtime::{traits::{AccountIdConversion, Saturating}};
 use sp_runtime::Perbill;
 use frame_support::sp_runtime::traits::Convert;
 use primitives::p_payment::*;
@@ -124,7 +124,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(now: T::BlockNumber) -> Weight {
+		fn on_initialize(_now: T::BlockNumber) -> Weight {
 			0
 		}
 	}
@@ -158,7 +158,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			order_index: u64,
 		) -> DispatchResult {
-			let liquidator = ensure_signed(origin)?;
+			ensure_signed(origin)?;
 			// 校验订单是否存在
 			ensure!(OrderPrice::<T>::contains_key(&order_index), Error::<T>::OrderPayoutInfoNotExist);
 			let mut payout_info = OrderPrice::<T>::get(&order_index).unwrap();
@@ -222,7 +222,7 @@ pub mod pallet {
 				let amount :BalanceOf<T> = price_opt.unwrap();
 				if T::BalanceToNumber::convert(amount) > 0 {
 					//从资金池中进行转账
-					T::Currency::transfer(&Self::storage_pool(),&who,amount, ExistenceRequirement::AllowDeath);
+					T::Currency::transfer(&Self::storage_pool(),&who,amount, ExistenceRequirement::AllowDeath)?;
 					// 记录累计收益
 					T::WorkerInterface::record_miner_income(&who,amount);
 					MinerPrice::<T>::remove(&who);
@@ -314,7 +314,7 @@ impl<T: Config> PaymentInterface for Pallet<T> {
 				T::Currency::transfer(
 					&account_id,
 					&Self::temporary_pool(),
-					(staking_amount + storage_amount + reserved_amount),
+					staking_amount + storage_amount + reserved_amount,
 					ExistenceRequirement::AllowDeath)?;
 				// 记录金额分割缓存数据
 				OrderSplitAmount::<T>::insert(order_index,(staking_amount, storage_amount, reserved_amount));
@@ -348,13 +348,13 @@ impl<T: Config> PaymentInterface for Pallet<T> {
 		}
 	}
 
-	fn cancel_order(order_index: &u64,order_price: &u128,deadline: &Self::BlockNumber, account_id: &Self::AccountId){
+	fn cancel_order(order_index: &u64, account_id: &Self::AccountId){
 		match OrderSplitAmount::<T>::get(order_index) {
 			Some((staking_amount , storage_amount , reserved_amount)) => {
 				let dispatch_result = T::Currency::transfer(
 					&Self::temporary_pool(),
 					&account_id,
-					(staking_amount + storage_amount + reserved_amount),
+					staking_amount + storage_amount + reserved_amount,
 					ExistenceRequirement::AllowDeath);
 				if dispatch_result.is_ok() {
 					//删除订单支出数据
