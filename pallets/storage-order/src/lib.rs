@@ -288,7 +288,7 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 		OrderInfo::<T>::get(order_index)
 	}
 
-	/// 更新存储文件的comm_c,comm_r
+	/// 更新存储文件的public_input
 	fn update_storage_order_public_input(order_index: &u64,public_input: Vec<u8>){
 		//获取订单
 		if let Some(mut order_info) = OrderInfo::<T>::get(order_index){
@@ -296,8 +296,7 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 			if let StorageOrderStatus::Canceled = &order_info.status {
 				return;
 			}
-			//更新订单的comm_c 和 comm_r
-			order_info.replication = order_info.replication + 1;
+			//更新订单的public_input
 			if order_info.public_input.is_empty(){
 				order_info.public_input = public_input;
 			}
