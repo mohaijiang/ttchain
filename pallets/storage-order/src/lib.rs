@@ -475,7 +475,7 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 			OrderInfo::<T>::insert(order_index,order_info);
 		}
 	}
-
+	/// 添加订单副本数
 	fn add_order_replication(order_index: &u64) {
 		//获取订单
 		if let Some(mut order_info) = OrderInfo::<T>::get(order_index){
@@ -496,7 +496,7 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 			AddedFilesCount::<T>::mutate(|count| {*count = count.saturating_add(1)});
 		}
 	}
-
+	/// 减少订单副本数
 	fn sub_order_replication(order_index: &u64) {
 		//获取订单
 		if let Some(mut order_info) = OrderInfo::<T>::get(order_index) {
@@ -517,6 +517,20 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 				}
 			}
 			OrderInfo::<T>::insert(order_index,order_info);
+		}
+	}
+	/// 将订单改为已清算状态
+	fn update_order_status_to_cleared(order_index: &u64) {
+		//校验订单状态
+		if let Some(mut order_info) = OrderInfo::<T>::get(order_index) {
+			//如果为已完成则进入已清算
+			if let StorageOrderStatus::Finished = order_info.status {
+				//订单状态修改
+				order_info.status = StorageOrderStatus::Cleared;
+				OrderInfo::<T>::insert(order_index,order_info);
+				//订单有效文件-1
+				ValidFilesCount::<T>::mutate(|count| {*count = count.saturating_sub(1)} );
+			}
 		}
 	}
 }

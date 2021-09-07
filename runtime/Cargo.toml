@@ -56,9 +56,6 @@ std = [
     "frame-system-rpc-runtime-api/std",
     "frame-system/std",
     "pallet-election-provider-multi-phase/std",
-    "pallet-timestamp/std",
-    "pallet-transaction-payment-rpc-runtime-api/std",
-    "pallet-transaction-payment/std",
     "sp-transaction-pool/std",
     "sp-version/std",
     "sp-npos-elections/std",
@@ -67,16 +64,12 @@ std = [
     "pallet-utility/std",
     'codec/std',
     'frame-executive/std',
-    'frame-support/std',
     'frame-system-rpc-runtime-api/std',
     'frame-system/std',
     'pallet-balances/std',
     'pallet-grandpa/std',
     'pallet-randomness-collective-flip/std',
     'pallet-sudo/std',
-    'pallet-timestamp/std',
-    'pallet-transaction-payment-rpc-runtime-api/std',
-    'pallet-transaction-payment/std',
     'sp-api/std',
     'sp-block-builder/std',
     'sp-core/std',
@@ -92,11 +85,13 @@ std = [
     'benefits/std',
     'worker-runtime-api/std',
     'primitives/std',
-    'payment/std'
+    'payment/std',
+    'sp-arithmetic/std'
 ]
 
 [dependencies]
 pallet-staking = { path = "../pallets/staking", default-features = false, version = "3.0.0" }
+smallvec = "1.4.1"
 
 [dependencies.codec]
 default-features = false
@@ -372,6 +367,12 @@ tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-utility]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.sp-arithmetic]
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'

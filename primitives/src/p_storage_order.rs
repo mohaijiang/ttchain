@@ -24,6 +24,8 @@ pub enum StorageOrderStatus {
     Finished,
     /// 已取消.
     Canceled,
+    /// 已清算
+    Cleared,
 }
 
 impl Default for StorageOrderStatus {
@@ -118,4 +120,6 @@ pub trait StorageOrderInterface {
     fn add_order_replication(order_index: &u64);
     /// 减少订单副本
     fn sub_order_replication(order_index: &u64);
+    /// 更新订单状态为已清算
+    fn update_order_status_to_cleared(order_index: &u64);
 }

@@ -2,7 +2,7 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit="256"]
 
-// Make the WASM binary available.
+mod impls;// Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
@@ -11,10 +11,10 @@ use sp_core::{
 	crypto::KeyTypeId,
 	OpaqueMetadata,
 };
-use sp_runtime::{ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, transaction_validity::{TransactionValidity, TransactionSource, TransactionPriority}, SaturatedConversion};
+use sp_runtime::{Perquintill, FixedPointNumber, ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, transaction_validity::{TransactionValidity, TransactionSource, TransactionPriority}};
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, AccountIdLookup, NumberFor, ConvertInto,
-	OpaqueKeys,Convert,
+	OpaqueKeys,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_babe;
@@ -42,7 +42,7 @@ pub use frame_support::{
 	},
 	debug,RuntimeDebug,
 };
-use pallet_transaction_payment::CurrencyAdapter;
+pub use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment, FeeDetails, OnChargeTransaction};
 use sp_runtime::curve::PiecewiseLinear;
 use pallet_session::{historical as pallet_session_historical};
 pub use pallet_staking::StakerStatus;
@@ -51,6 +51,9 @@ use frame_system::{
 	EnsureRoot,
 };
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+
+/// Implementations of some helper traits passed into runtime modules as associated types.
+use impls::{CurrencyToVoteHandler, Author, OneTenthFee, CurrencyAdapter};
 
 /// 引用元数据
 pub use primitives::{
@@ -277,6 +280,25 @@ impl pallet_timestamp::Config for Runtime {
 	type WeightInfo = pallet_timestamp::weights::SubstrateWeight<Runtime>;
 }
 
+type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
+
+pub struct DealWithFees;
+impl OnUnbalanced<NegativeImbalance> for DealWithFees {
+	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
+		if let Some(fees) = fees_then_tips.next() {
+			// for fees, 80% to treasury, 20% to author
+			let mut split = fees.ration(80, 20);
+			if let Some(tips) = fees_then_tips.next() {
+				// for tips, if any, 80% to treasury, 20% to author (though this can be anything)
+				tips.ration_merge_into(80, 20, &mut split);
+			}
+			//todo 目前给国库的金额取消
+			//Treasury::on_unbalanced(split.0);
+			Author::on_unbalanced(split.1);
+		}
+	}
+}
+
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 500;
 	pub const MaxLocks: u32 = 50;
@@ -297,14 +319,18 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 1;
+    pub const TransactionByteFee: Balance = MILLICENTS / 100;
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
+	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-	type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
+	type OnChargeTransaction = CurrencyAdapter<Balances, Benefits, DealWithFees>;
 	type TransactionByteFee = TransactionByteFee;
-	type WeightToFee = IdentityFee<Balance>;
-	type FeeMultiplierUpdate = ();
+	type WeightToFee = OneTenthFee<Balance>;
+	type FeeMultiplierUpdate =
+	TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -399,31 +425,6 @@ parameter_types! {
 	pub OffchainRepeat: BlockNumber = 5;
 	// 60 eras means 15 days if era = 6 hours
     pub const MarketStakingPotDuration: u32 = 60;
-}
-
-/// Simple structure that exposes how u64 currency can be represented as... u64.
-pub struct CurrencyToVoteHandler;
-
-impl Convert<u64, u64> for CurrencyToVoteHandler {
-	fn convert(x: u64) -> u64 {
-		x
-	}
-}
-impl Convert<u128, u128> for CurrencyToVoteHandler {
-	fn convert(x: u128) -> u128 {
-		x
-	}
-}
-impl Convert<u128, u64> for CurrencyToVoteHandler {
-	fn convert(x: u128) -> u64 {
-		x.saturated_into()
-	}
-}
-
-impl Convert<u64, u128> for CurrencyToVoteHandler {
-	fn convert(x: u64) -> u128 {
-		x as u128
-	}
 }
 
 /// staking Runtime config
@@ -530,9 +531,10 @@ impl storage_order::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ReportInterval: BlockNumber = 1 * DAYS;
+	// 工作量上报间隔
+	pub const ReportInterval: BlockNumber = 6 * HOURS;
 	//定义文件副本收益限额 eg：前10可获得奖励
-	pub const AverageIncomeLimit: u8 = 10;
+	pub const AverageIncomeLimit: u8 = 4;
 }
 
 /// worker Runtime config
@@ -543,6 +545,7 @@ impl worker::Config for Runtime {
 	type BalanceToNumber = ConvertInto;
 	type StorageOrderInterface = StorageOrder;
 	type AverageIncomeLimit = AverageIncomeLimit;
+	type Works = Staking;
 }
 
 parameter_types! {

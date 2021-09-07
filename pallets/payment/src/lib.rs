@@ -27,29 +27,12 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-pub(crate) const LOG_TARGET: &'static str = "ttchain::payment";
-
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
-
-
-// syntactic sugar for logging.
-#[macro_export]
-macro_rules! log {
-	($level:tt, $patter:expr $(, $values:expr)* $(,)?) => {
-		log::$level!(
-			target: crate::LOG_TARGET,
-			concat!("[{:?}] 💸 ", $patter), <frame_system::Pallet<T>>::block_number() $(, $values)*
-		)
-	};
-}
-
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-
-
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -73,7 +56,7 @@ pub mod pallet {
 		type StakingRatio: Get<Perbill>;
 		/// 存储池分配比率
 		type StorageRatio: Get<Perbill>;
-		/// 折扣j接口
+		/// 折扣接口
 		type BenefitInterface: BenefitInterface<Self::AccountId, BalanceOf<Self>, NegativeImbalanceOf<Self>>;
 	}
 
@@ -198,13 +181,16 @@ pub mod pallet {
 						}
 					}
 				}
-
 				// 更新当前订单支付数据
 				payout_info.calculate = calculated_block;
 				payout_info.amount = payout_info.amount.saturating_sub(rewarded_amount);
-				OrderPrice::<T>::insert(&order_index,payout_info);
+				OrderPrice::<T>::insert(&order_index,payout_info.clone());
 			}
-			//todo 判断当前订单是否已经完成
+			//判断当前订单是否已经完成
+			if payout_info.deadline <= curr_bn && payout_info.deadline == calculated_block {
+				//将订单修改为已清算状态
+				T::StorageOrderInterface::update_order_status_to_cleared(&order_index);
+			};
 			Self::deposit_event(Event::CalculateSuccess(order_index));
 			Ok(())
 		}

@@ -63,6 +63,9 @@ pub mod pallet {
 
 		/// 平均收益限额
 		type AverageIncomeLimit: Get<u8>;
+
+		/// 工作量证明上报接口
+		type Works: Works<Self::AccountId>;
 	}
 
 	/// 矿工个数
@@ -120,7 +123,6 @@ pub mod pallet {
 	#[pallet::getter(fn miner_order_income)]
 	pub(super) type MinerOrderIncome<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, bool, ValueQuery>;
 
-
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
@@ -143,8 +145,10 @@ pub mod pallet {
 			if (now % T::ReportInterval::get()).is_zero() {
 				//获得当前阶段
 				let block_number = now -  T::ReportInterval::get();
-				//当前阶段进行健康检查
-				Self::health_check(&block_number);
+				//当前阶段进行健康检查 进行工作量证明上报
+				let (workload_map,total_storage) = Self::health_check(&block_number);
+				//工作量证明上报
+				T::Works::report_works(workload_map,total_storage);
 				//发送健康检查事件
 				Self::deposit_event(Event::HealthCheck(block_number));
 			}
@@ -336,34 +340,43 @@ impl<T: Config> Pallet<T> {
 	}
 
 	///进行健康检查
-	fn health_check(block_number: &T::BlockNumber) {
+	fn health_check(block_number: &T::BlockNumber) -> (BTreeMap<T::AccountId, u128>, u128) {
+		//工作量上报数据
+		let mut workload_map = BTreeMap::<T::AccountId, u128>::new();
 		//查询当前矿工节点
-		let miners = Miners::<T>::get().into_iter().filter(|miner| {
-			let result = Report::<T>::contains_key(block_number, miner);
+		Miners::<T>::get().into_iter().for_each(|miner| {
+			let result = Report::<T>::contains_key(block_number, &miner);
 			//如果不存在
 			if !result {
 				//获得矿工订单列表
-				let orders = MinerOrderSet::<T>::get(miner);
+				let orders = MinerOrderSet::<T>::get(&miner);
 				//删除订单矿工信息
 				orders.into_iter().for_each(|order_index| {
 					//在订单矿工数据中删除该矿工
-					Self::sub_miner_set_of_order(&order_index,miner);
+					Self::sub_miner_set_of_order(&order_index,&miner);
 					//减掉订单信息副本
 					T::StorageOrderInterface::sub_order_replication(&order_index);
 				});
 				//删除矿工订单信息
-				MinerOrderSet::<T>::remove(miner);
+				MinerOrderSet::<T>::remove(&miner);
+				//删除矿工存储
+				MinerTotalStorage::<T>::remove(&miner);
+				MinerUsedStorage::<T>::remove(&miner);
+				workload_map.insert(miner.clone(), 0);
+			} else {
+				//添加工作量上报数据
+				let total_storage = MinerTotalStorage::<T>::get(&miner);
+				//todo 关于副本系数获得有效存储空间
+				workload_map.insert(miner.clone(), total_storage);
 			}
-			result
-		}).collect::<Vec<T::AccountId>>();
-		//维护矿工信息
-		Miners::<T>::put(miners);
+		});
 		//更新总存储
 		let total_storage = MinerTotalStorage::<T>::iter_values().sum::<u128>();
 		TotalStorage::<T>::put(total_storage);
 		//更新总使存储
 		let used_storage = MinerUsedStorage::<T>::iter_values().sum::<u128>();
 		UsedStorage::<T>::put(used_storage);
+		(workload_map,total_storage)
 	}
 
 	///添加订单矿工信息
@@ -434,7 +447,6 @@ impl<T: Config> Pallet<T> {
 		}
 		list
 	}
-
 }
 
 impl<T: Config> WorkerInterface for Pallet<T> {
