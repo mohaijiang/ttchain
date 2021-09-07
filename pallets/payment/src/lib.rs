@@ -6,7 +6,7 @@
 
 pub use pallet::*;
 use sp_std::vec::Vec;
-use frame_support::{traits::{Currency,ExistenceRequirement,ExistenceRequirement::{AllowDeath, KeepAlive}},PalletId};
+use frame_support::{traits::{Currency,ExistenceRequirement},PalletId};
 use sp_runtime::{traits::AccountIdConversion};
 use frame_support::dispatch::DispatchResult;
 use frame_support::sp_runtime::traits::Convert;
@@ -191,7 +191,7 @@ pub mod pallet {
 						// 计算每人可分配金额
 						let per_worker_income = price_u128/(workers as u128);
  						// 矿工循环，计算收益
-						for mut miner in &miners {
+						for miner in &miners {
 
 							match MinerPrice::<T>::get(miner) {
 								Some(t) => {
@@ -292,7 +292,7 @@ impl<T: Config> PaymentInterface for Pallet<T> {
 				OrderDeadline::<T>::insert(&deadline,order_deadline_set);
 				Ok(())
 			},
-			Some(old) => {
+			Some(_old) => {
             	// 已有订单金额，理论上不可能，暂时不修改数据
 				Err(Error::<T>::NoneValue)?
 			},
@@ -301,7 +301,7 @@ impl<T: Config> PaymentInterface for Pallet<T> {
 
 	fn cancel_order(order_index: &u64,order_price: &u128,deadline: &Self::BlockNumber, account_id: &Self::AccountId){
 		match OrderPrice::<T>::get(order_index) {
-			Some(old) => {
+			Some(_old) => {
 				let dispatch_result = T::Currency::transfer(&Self::account_id(),&account_id, T::NumberToBalance::convert(*order_price), ExistenceRequirement::AllowDeath);
 				if dispatch_result.is_ok() {
 					//记录订单到期区块

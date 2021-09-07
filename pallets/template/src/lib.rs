@@ -5,8 +5,10 @@
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
 
 pub use pallet::*;
-use frame_support::{traits::{Currency,ExistenceRequirement,ExistenceRequirement::{AllowDeath, KeepAlive}},PalletId};
+use sp_std::vec::Vec;
+use frame_support::{traits::{Currency,ExistenceRequirement},PalletId};
 use sp_runtime::{traits::AccountIdConversion};
+use frame_support::dispatch::DispatchResult;
 
 #[cfg(test)]
 mod mock;
@@ -16,8 +18,10 @@ mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+mod zk;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
 
 
 #[frame_support::pallet]
@@ -26,7 +30,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use frame_support::traits::Currency;
 	use super::*;
-
+	use crate::zk::poreq_validate;
 
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -60,6 +64,8 @@ pub mod pallet {
 		/// Event documentation should end with an array that provides descriptive names for event
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
+		/// 验证失败
+		ValidateFail(u32,T::AccountId),
 
 		DonationReceived(T::AccountId, BalanceOf<T>, BalanceOf<T>),
 
@@ -83,7 +89,7 @@ pub mod pallet {
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
+		pub fn do_something(origin: OriginFor<T>, something: u32,proof_encode: Vec<u8>,comm_c: Vec<u8>,comm_r_last: Vec<u8>) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
 			// https://substrate.dev/docs/en/knowledgebase/runtime/origin
@@ -92,8 +98,15 @@ pub mod pallet {
 			// Update storage.
 			<Something<T>>::put(something);
 
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored(something, who));
+			let validate_result = poreq_validate(proof_encode,comm_c,comm_r_last);
+
+			if validate_result {
+				// Emit an event.
+				Self::deposit_event(Event::SomethingStored(something, who));
+			}else {
+				Self::deposit_event(Event::ValidateFail(something, who));
+			}
+
 			// Return a successful DispatchResultWithPostInfo
 			Ok(())
 		}
@@ -137,7 +150,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let donor = ensure_signed(origin)?;
 
-			&Self::withdrawal(&donor,amount);
+			&Self::withdrawal(&donor,amount)?;
 			Self::deposit_event(Event::Withdrawal(donor, amount, Self::pot()));
 			Ok(())
 		}
@@ -157,7 +170,7 @@ impl <T:Config> Pallet<T> {
 		T::Currency::free_balance(&Self::account_id())
 	}
 
-	fn withdrawal(account_id: &T::AccountId,amount: BalanceOf<T>) {
-		T::Currency::transfer(&Self::account_id(),account_id,amount, ExistenceRequirement::AllowDeath);
+	fn withdrawal(account_id: &T::AccountId,amount: BalanceOf<T>) -> DispatchResult {
+		T::Currency::transfer(&Self::account_id(),account_id,amount, ExistenceRequirement::AllowDeath)
 	}
 }

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use codec::{Encode, Decode};
 use sp_std::vec::Vec;
 use sp_debug_derive::RuntimeDebug;
+use sp_std::vec;
 
 #[derive( Encode, Decode, RuntimeDebug, PartialEq, Eq, Copy, Clone)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -45,6 +46,8 @@ pub struct StorageOrder<AccountId, BlockNumber> {
     pub status: StorageOrderStatus,
     /// 副本数
     pub replication: u32,
+    /// comm_d
+    pub public_input: Vec<u8>,
 }
 
 impl<AccountId, BlockNumber> StorageOrder<AccountId, BlockNumber> {
@@ -62,6 +65,7 @@ impl<AccountId, BlockNumber> StorageOrder<AccountId, BlockNumber> {
             block_number,
             status: StorageOrderStatus::Pending,
             replication: 0,
+            public_input: vec![],
         }
     }
 }
@@ -98,6 +102,8 @@ pub trait StorageOrderInterface {
 
     /// 通过订单index获得存储订单信息
     fn get_storage_order(order_index: &u64) -> Option<StorageOrder<Self::AccountId,Self::BlockNumber>>;
+    /// 更新存储文件的public_input
+    fn update_storage_order_public_input(order_index: &u64,public_input: Vec<u8>);
     /// 添加订单副本
     fn add_order_replication(order_index: &u64);
     /// 减少订单副本

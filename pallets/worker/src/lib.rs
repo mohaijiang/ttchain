@@ -17,6 +17,8 @@ use primitives::p_storage_order::StorageOrderInterface;
 use primitives::p_storage_order::StorageOrderStatus;
 use primitives::p_worker::*;
 
+mod zk;
+
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[frame_support::pallet]
@@ -152,6 +154,10 @@ pub mod pallet {
 		AlreadyCallOrderFinish,
 		/// 订单不存在
 		OrderDoesNotExist,
+		/// 零知识证明无效
+		ProofInvalid,
+		/// 证明与订单不匹配
+		ProofNotMatchOrder,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -190,7 +196,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			miner: T::AccountId,
 			order_index: u64,
-			cid: Vec<u8>
+			cid: Vec<u8>,
+			public_input: Vec<u8>,
+			proof: Vec<u8>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			//校验是否为矿工
@@ -208,10 +216,16 @@ pub mod pallet {
 			//判断订单是否已经提交
 			let miners = MinerSetOfOrder::<T>::get(&order_index);
 			ensure!(!miners.contains(&miner), Error::<T>::AlreadyCallOrderFinish);
+
+			//验证零知识证明
+			let zk_validate = zk::poreq_validate(&proof,&public_input);
+			ensure!(zk_validate,Error::<T>::ProofInvalid);
+
 			//添加订单矿工信息
 			Self::add_miner_set_of_order(&order_index,miner.clone());
 			//添加订单副本
 			T::StorageOrderInterface::add_order_replication(&order_index);
+			T::StorageOrderInterface::update_storage_order_public_input(&order_index,public_input);
 			//存入矿工订单数据
 			let mut orders = MinerOrderSet::<T>::get(&miner);
 			orders.push(order_index);
@@ -225,6 +239,7 @@ pub mod pallet {
 		pub fn proof_of_spacetime(
 			origin: OriginFor<T>,
 			orders: Vec<u64>,
+			proofs: Vec<Vec<u8>>,
 			total_storage: u64,
 			used_storage: u64
 		) -> DispatchResult {
@@ -234,6 +249,8 @@ pub mod pallet {
 			let block_number = <frame_system::Pallet<T>>::block_number();
 			//计算当前阶段
 			let block_number = block_number - (block_number % T::ReportInterval::get());
+			// 校验订单数与证明数匹配
+			ensure!(orders.len() == proofs.len(),Error::<T>::ProofNotMatchOrder);
 			//通过矿工查询订单列表
 			let miner_orders = MinerOrderSet::<T>::get(&who);
 			//判断订单列表是否为空
@@ -248,6 +265,20 @@ pub mod pallet {
 				//添加入矿工订单中
 				MinerOrderSet::<T>::insert(&who,orders.clone());
 			}else{
+
+				// 校验订单的时空证明
+				for index in 0..orders.len() {
+					let order_opt = T::StorageOrderInterface::get_storage_order(&orders[index]);
+					if order_opt.is_some() {
+						let proof = &proofs[index];
+						let order = order_opt.unwrap();
+
+						//验证零知识证明
+						let zk_validate = zk::poreq_validate(proof,&order.public_input);
+						ensure!(zk_validate,Error::<T>::ProofInvalid);
+					}
+				}
+
 				//订单过滤
 				let miner_orders = miner_orders.into_iter().filter(|index| {
 					let result = orders.contains(index);
@@ -259,6 +290,7 @@ pub mod pallet {
 					}
 					result
 				}).collect::<Vec<u64>>();
+
 				//修改矿工订单列表
 				MinerOrderSet::<T>::insert(&who,miner_orders);
 			}
