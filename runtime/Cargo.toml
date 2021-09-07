@@ -92,7 +92,8 @@ std = [
     'benefits/std',
     'worker-runtime-api/std',
     'primitives/std',
-    'payment/std'
+    'payment/std',
+    "pallet-offences/std",
 ]
 
 [dependencies]
@@ -376,6 +377,7 @@ default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
+
 
 [dependencies.primitives]
 package="ttc-primitives"
