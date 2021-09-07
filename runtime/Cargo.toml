@@ -86,7 +86,8 @@ std = [
     'worker-runtime-api/std',
     'primitives/std',
     'payment/std',
-    'sp-arithmetic/std'
+    'sp-arithmetic/std',
+    "pallet-offences/std",
 ]
 
 [dependencies]
