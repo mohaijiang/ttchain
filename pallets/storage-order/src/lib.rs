@@ -98,7 +98,7 @@ pub mod pallet {
 		/// 订单完成
 		OrderFinish(u64),
 		/// 订单取消
-		OrderCanceled(u64, Vec<u8>),
+		OrderCanceled(u128,T::AccountId,u64, Vec<u8>),
 		/// 删除订单
 		OrderDeleted(u64)
 	}
