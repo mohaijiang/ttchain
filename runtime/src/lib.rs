@@ -484,7 +484,7 @@ impl pallet_staking::Config for Runtime {
 	type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
 	type SPowerRatio = ();
 	type MarketStakingPotDuration = MarketStakingPotDuration;
-	// type MarketStakingPot = ();
+	type PaymentInterface = Payment;
 	type BenefitInterface = Benefits;
 }
 

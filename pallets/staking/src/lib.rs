@@ -323,6 +323,8 @@ use primitives::{
 	},
 	p_benefit::BenefitInterface
 };
+use primitives::p_payment::PaymentInterface;
+
 pub mod total_stake_limit_ratio;
 use total_stake_limit_ratio::total_stake_limit_ratio;
 
@@ -872,8 +874,8 @@ pub mod pallet {
 		/// Storage power ratio for crust network phase 1
 		type SPowerRatio: Get<u128>;
 
-		// /// Reference to Market staking pot.
-		// type MarketStakingPot: MarketInterface<Self::AccountId, BalanceOf<Self>>;
+		/// Reference to Market staking pot.
+		type PaymentInterface: PaymentInterface<AccountId = Self::AccountId,BlockNumber = Self::BlockNumber,Balance = BalanceOf<Self>>;
 
 		/// Market Staking Pot Duration. Count of EraIndex
 		type MarketStakingPotDuration: Get<u32>;
@@ -2842,12 +2844,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn calculate_market_payout(active_era: EraIndex) -> BalanceOf<T> {
-		//? TODO:市场需要withdraw_staking_pot接口
-		//let total_dsm_staking_payout = T::MarketStakingPot::withdraw_staking_pot();
-
-		let to_balance = |e: u128| <T::CurrencyToVote as Convert<u128, BalanceOf<T>>>::convert(e);
-		let total_dsm_staking_payout = to_balance(Zero::zero());
-
+		//市场需要withdraw_staking_pool接口
+		let total_dsm_staking_payout :BalanceOf<T> = T::PaymentInterface::withdraw_staking_pool();
 
 		let duration = T::MarketStakingPotDuration::get();
 		let dsm_staking_payout_per_era = Perbill::from_rational(1, duration) * total_dsm_staking_payout;

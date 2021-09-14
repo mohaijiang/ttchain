@@ -25,4 +25,6 @@ pub trait PaymentInterface {
     fn pay_order(order_index: &u64, file_base_price: Self::Balance, order_price: Self::Balance, tips: Self::Balance, deadline: Self::BlockNumber, account_id: &Self::AccountId) -> DispatchResult;
     /// 订单取消退款
     fn cancel_order(order_index: &u64, account_id: &Self::AccountId);
+    /// 用于分配支付支出
+    fn withdraw_staking_pool() -> Self::Balance;
 }

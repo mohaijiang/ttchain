@@ -203,8 +203,6 @@ pub mod pallet {
 		OrderDoesNotExist,
 		/// 订单价格错误
 		OrderPriceError,
-		/// 删除订单索引错误
-		DeleteOrderError
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -212,22 +210,6 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
-
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn delete_order(origin: OriginFor<T>,order_index: u64) -> DispatchResult {
-			ensure_root(origin)?;
-			//获取订单长度
-			let order_count = OrderCount::<T>::get();
-			ensure!( order_index  <= order_count - 1 , Error::<T>::DeleteOrderError);
-			if let Some(mut order_info) = OrderInfo::<T>::get(order_index) {
-				OrderInfo::<T>::remove(order_index);
-				//发送删除订单事件
-				Self::deposit_event(Event::OrderDeleted(order_index));
-			} else {
-				ensure!( true , Error::<T>::OrderDoesNotExist);
-			}
-			Ok(())
-		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn create_order(
@@ -540,16 +522,13 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 			//订单信息副本数-1
 			if order_info.replication > 0 {
 				order_info.replication = order_info.replication - 1;
-				let replication_count = TotalCopies::<T>::get();
-				TotalCopies::<T>::put(replication_count - 1);
-			}
-			if order_info.replication == 0 {
-				if  ValidFilesCount::<T>::get() > 0{
-					let count = ValidFilesCount::<T>::get();
-					ValidFilesCount::<T>::put(count - 1);
+				TotalCopies::<T>::mutate(|count| {*count = count.saturating_sub(1)});
+				// 如果副本为0则有效副本-1
+				if order_info.replication == 0 {
+					ValidFilesCount::<T>::mutate(|count| {*count = count.saturating_sub(1)} );
 				}
+				OrderInfo::<T>::insert(order_index,order_info);
 			}
-			OrderInfo::<T>::insert(order_index,order_info);
 		}
 	}
 	/// 将订单改为已清算状态
@@ -559,10 +538,13 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 			//如果为已完成则进入已清算
 			if let StorageOrderStatus::Finished = order_info.status {
 				//订单状态修改
+				let replication = order_info.replication;
 				order_info.status = StorageOrderStatus::Cleared;
 				OrderInfo::<T>::insert(order_index,order_info);
 				//订单有效文件-1
 				ValidFilesCount::<T>::mutate(|count| {*count = count.saturating_sub(1)} );
+				//减去订单副本数
+				TotalCopies::<T>::mutate(|count| {*count = count.saturating_sub(replication as u64)});
 			}
 		}
 	}

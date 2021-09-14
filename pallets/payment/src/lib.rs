@@ -7,7 +7,7 @@
 pub use pallet::*;
 use sp_std::convert::TryInto;
 use sp_runtime::traits::Zero;
-use frame_support::{ traits::{ Currency, ExistenceRequirement},
+use frame_support::{ traits::{ Currency, ExistenceRequirement, WithdrawReasons, Imbalance},
 					 PalletId, dispatch::DispatchResult, pallet_prelude::*};
 use frame_system::pallet_prelude::*;
 use sp_runtime::{traits::{AccountIdConversion, Saturating}};
@@ -29,6 +29,19 @@ mod benchmarking;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+type PositiveImbalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::PositiveImbalance;
+
+pub(crate) const LOG_TARGET: &'static str = "payment";
+
+#[macro_export]
+macro_rules! log {
+    ($level:tt, $patter:expr $(, $values:expr)* $(,)?) => {
+		log::$level!(
+			target: crate::LOG_TARGET,
+			concat!("[{:?}] 💸 ", $patter), <frame_system::Pallet<T>>::block_number() $(, $values)*
+		)
+    };
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -351,5 +364,22 @@ impl<T: Config> PaymentInterface for Pallet<T> {
 			},
 			None => ()
 		}
+	}
+
+	fn withdraw_staking_pool() -> BalanceOf<T> {
+		let staking_pool = Self::staking_pool();
+		if T::Currency::free_balance(&staking_pool) < T::Currency::minimum_balance() {
+			log!(info, "🏢 Staking Pool is empty.");
+			return Zero::zero();
+		}
+		// Leave the minimum balance to keep this account live.
+		let staking_amount = T::Currency::free_balance(&staking_pool) - T::Currency::minimum_balance();
+		let mut imbalance = <PositiveImbalanceOf<T>>::zero();
+		imbalance.subsume(T::Currency::burn(staking_amount.clone()));
+		if let Err(_) = T::Currency::settle(&staking_pool, imbalance, WithdrawReasons::TRANSFER, ExistenceRequirement::KeepAlive) {
+			log!(warn, "🏢 Something wrong during withdrawing staking pot. Admin/Council should pay attention to it.");
+			return Zero::zero();
+		}
+		staking_amount
 	}
 }
