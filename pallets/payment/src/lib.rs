@@ -108,7 +108,7 @@ pub mod pallet {
 		ClearOrder(u64),
 
 		/// 领取收益
-		Withdrawal(T::AccountId, BalanceOf<T>, BalanceOf<T>),
+		Withdrawal( BalanceOf<T>,T::AccountId,BalanceOf<T>),
 	}
 
 	#[pallet::hooks]
@@ -245,7 +245,7 @@ pub mod pallet {
 					// 记录累计收益
 					T::WorkerInterface::record_miner_income(&who,amount);
 					MinerPrice::<T>::remove(&who);
-					Self::deposit_event(Event::Withdrawal(who, amount, Self::pot()));
+					Self::deposit_event(Event::Withdrawal(amount,who, Self::pot()));
 				}
 			}
 			Ok(())
