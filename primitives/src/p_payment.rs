@@ -27,4 +27,6 @@ pub trait PaymentInterface {
     fn cancel_order(order_index: &u64, account_id: &Self::AccountId);
     /// 用于分配支付支出
     fn withdraw_staking_pool() -> Self::Balance;
+    /// 订单拆分数据存入相应金额池中
+    fn transfer_reserved_and_storage_and_staking_pool_by_temporary_pool(order_index: &u64);
 }

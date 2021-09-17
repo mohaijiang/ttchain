@@ -37,8 +37,6 @@ pub mod pallet {
 
 		/// 订单等待时间
 		type OrderWaitingTime: Get<Self::BlockNumber>;
-		// 每byte 每天的价格
-		type PerByteDayPrice: Get<u64>;
 
 		/// 支付费用和持有余额的货币。
 		type Currency: Currency<Self::AccountId>;
@@ -502,6 +500,8 @@ impl<T: Config> StorageOrderInterface for Pallet<T> {
 				order_info.status = StorageOrderStatus::Finished;
 				let count = ValidFilesCount::<T>::get();
 				ValidFilesCount::<T>::put(count + 1);
+				//当订单从pending中变为finished时将暂存池中的订单金额交易到不同的金额池中
+				T::PaymentInterface::transfer_reserved_and_storage_and_staking_pool_by_temporary_pool(order_index);
 			}
 			//订单信息副本数+1
 			order_info.replication = order_info.replication + 1;

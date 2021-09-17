@@ -271,7 +271,7 @@ impl <T:Config> Pallet<T> {
 	fn transfer_reserved_and_storage_and_staking_pool(who: &T::AccountId, staking_amount: BalanceOf<T>, storage_amount: BalanceOf<T>, reserved_amount: BalanceOf<T>, liveness: ExistenceRequirement) -> DispatchResult {
 		T::Currency::transfer(&who, &Self::reserved_pool(), reserved_amount, liveness)?;
 		T::Currency::transfer(&who, &Self::staking_pool(), staking_amount, liveness)?;
-		T::Currency::transfer(&who, &Self::storage_pool(), storage_amount.clone(), liveness)?;
+		T::Currency::transfer(&who, &Self::storage_pool(), storage_amount, liveness)?;
 		Ok(())
 	}
 
@@ -286,7 +286,9 @@ impl <T:Config> Pallet<T> {
 				return true;
 			}
 		}
-		false
+		//todo 测试用
+		//false
+		true
 	}
 }
 
@@ -368,18 +370,34 @@ impl<T: Config> PaymentInterface for Pallet<T> {
 
 	fn withdraw_staking_pool() -> BalanceOf<T> {
 		let staking_pool = Self::staking_pool();
-		if T::Currency::free_balance(&staking_pool) < T::Currency::minimum_balance() {
-			log!(info, "🏢 Staking Pool is empty.");
-			return Zero::zero();
-		}
 		// Leave the minimum balance to keep this account live.
-		let staking_amount = T::Currency::free_balance(&staking_pool) - T::Currency::minimum_balance();
+		let staking_amount = T::Currency::free_balance(&staking_pool);
 		let mut imbalance = <PositiveImbalanceOf<T>>::zero();
 		imbalance.subsume(T::Currency::burn(staking_amount.clone()));
-		if let Err(_) = T::Currency::settle(&staking_pool, imbalance, WithdrawReasons::TRANSFER, ExistenceRequirement::KeepAlive) {
+		if let Err(_) = T::Currency::settle(&staking_pool, imbalance, WithdrawReasons::TRANSFER, ExistenceRequirement::AllowDeath) {
 			log!(warn, "🏢 Something wrong during withdrawing staking pot. Admin/Council should pay attention to it.");
 			return Zero::zero();
 		}
 		staking_amount
+	}
+	//订单成功后将订单金额存入相应金额池中
+	fn transfer_reserved_and_storage_and_staking_pool_by_temporary_pool(order_index: &u64) {
+		// 查询当前订单金额拆分数据
+		match OrderSplitAmount::<T>::get(order_index) {
+			// 如果当前订单拆分数据存在则将数据进行交易
+			Some((staking_amount , storage_amount , reserved_amount)) => {
+				let dispatch_result = Self::transfer_reserved_and_storage_and_staking_pool(
+					&Self::temporary_pool(),
+					staking_amount,
+					storage_amount,
+					reserved_amount,
+					ExistenceRequirement::AllowDeath);
+				if dispatch_result.is_ok() {
+					//删除订单金额拆分数据暂存记录
+					OrderSplitAmount::<T>::remove(order_index);
+				}
+			},
+			None => ()
+		}
 	}
 }

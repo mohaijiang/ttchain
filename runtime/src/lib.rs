@@ -430,14 +430,20 @@ impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
 }
 
 parameter_types! {
-	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
-	pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
-	pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
+	//todo:: 测试网 主网上线后修改
+	pub const SessionsPerEra: sp_staking::SessionIndex = 1;
+	//pub const SessionsPerEra: sp_staking::SessionIndex = 6;
+	// 112 eras (28天)
+	pub const BondingDuration: pallet_staking::EraIndex = 4 * 28;
+	// 108eras 略微少于(28天)
+	pub const SlashDeferDuration: pallet_staking::EraIndex = 4 * 27;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 	pub const MaxNominatorRewardedPerValidator: u32 = 256;
 	pub OffchainRepeat: BlockNumber = 5;
 	// 60 eras means 15 days if era = 6 hours
     pub const MarketStakingPotDuration: u32 = 60;
+	// 1000 * CRUs / TB, since we treat 1 TB = 1_000_000_000_000_000, so the ratio = `1000`
+    pub const SPowerRatio: u128 = 1000;
 }
 
 /// staking Runtime config
@@ -451,12 +457,7 @@ impl pallet_staking::Config for Runtime {
 	type UnixTime = Timestamp;
 	//将余额转换为选举用的数字
 	type CurrencyToVote = CurrencyToVoteHandler;
-	//抵押者的总奖励=年通膨胀率*代币发行总量/每年周期数           //年通膨胀率=npos_token_staked / total_tokens
-	// staker_payout = yearly_inflation(npos_token_staked / total_tokens) * total_tokens / era_per_year
-	//RewardRemainder剩余的奖励 = 每年最大膨胀率*代币总数/每年周期数-给抵押者的总奖励
-	//remaining_payout = max_yearly_inflation * total_tokens / era_per_year - staker_payout
-	//如果最大奖励减去实际奖励还有剩余奖励，将剩余奖励收归国库，用于支持生态发展支出
-	//Treasury模块：提供一个资金池，能够由抵押者们来管理，在这个国库系统中，能够从这个资金池中发起发费提案。
+	//剩余金额
 	type RewardRemainder = ();
 	//类型时间
 	type Event = Event;
@@ -482,7 +483,7 @@ impl pallet_staking::Config for Runtime {
 	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
 	//权重信息
 	type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
-	type SPowerRatio = ();
+	type SPowerRatio = SPowerRatio;
 	type MarketStakingPotDuration = MarketStakingPotDuration;
 	type PaymentInterface = Payment;
 	type BenefitInterface = Benefits;
@@ -509,7 +510,6 @@ impl pallet_authority_discovery::Config for Runtime {}
 
 parameter_types! {
 	pub const OrderWaitingTime: BlockNumber = 30 * MINUTES;
-	pub const PerByteDayPrice: u64 = 10;
 	// 文件基础费用
 	pub const FileBaseInitFee: Balance = 0;
 	// 文件个数费用
@@ -529,7 +529,6 @@ impl storage_order::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type OrderWaitingTime = OrderWaitingTime;
-	type PerByteDayPrice = PerByteDayPrice;
 	type BalanceToNumber = ConvertInto;
 	type BlockNumberToNumber = ConvertInto;
 	type PaymentInterface = Payment;
@@ -545,7 +544,9 @@ impl storage_order::Config for Runtime {
 
 parameter_types! {
 	// 工作量上报间隔
-	pub const ReportInterval: BlockNumber = 6 * HOURS;
+	//todo:: 测试网 主网上线后修改
+	//pub const ReportInterval: BlockNumber = 6 * HOURS;
+	pub const ReportInterval: BlockNumber = 10 * MINUTES;
 	//定义文件副本收益限额 eg：前10可获得奖励
 	pub const AverageIncomeLimit: u8 = 4;
 }

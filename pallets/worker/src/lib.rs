@@ -247,8 +247,9 @@ pub mod pallet {
 			ensure!(!miners.contains(&miner), Error::<T>::AlreadyCallOrderFinish);
 
 			//验证零知识证明
-			let zk_validate = zk::poreq_validate(&proof,&public_input);
-			ensure!(zk_validate,Error::<T>::ProofInvalid);
+			//todo 测试用
+			// let zk_validate = zk::poreq_validate(&proof,&public_input);
+			// ensure!(zk_validate,Error::<T>::ProofInvalid);
 
 			//添加订单矿工信息
 			Self::add_miner_set_of_order(&order_index,miner.clone());
@@ -279,7 +280,8 @@ pub mod pallet {
 			//计算当前阶段
 			let block_number = block_number - (block_number % T::ReportInterval::get());
 			// 校验订单数与证明数匹配
-			ensure!(orders.len() == proofs.len(),Error::<T>::ProofNotMatchOrder);
+			//todo 测试用
+			//ensure!(orders.len() == proofs.len(),Error::<T>::ProofNotMatchOrder);
 			//通过矿工查询订单列表
 			let miner_orders = MinerOrderSet::<T>::get(&who);
 			//判断订单列表是否为空
@@ -302,8 +304,9 @@ pub mod pallet {
 						let order = order_opt.unwrap();
 
 						//验证零知识证明
-						let zk_validate = zk::poreq_validate(proof,&order.public_input);
-						ensure!(zk_validate,Error::<T>::ProofInvalid);
+						//todo 测试用
+						// let zk_validate = zk::poreq_validate(proof,&order.public_input);
+						// ensure!(zk_validate,Error::<T>::ProofInvalid);
 					}
 				}
 				//订单过滤
