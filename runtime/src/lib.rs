@@ -803,9 +803,12 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl storage_order_runtime_api::StorageOrderApi<Block, AccountId, BlockNumber> for Runtime {
+	impl storage_order_runtime_api::StorageOrderApi<Block, AccountId, BlockNumber,Balance> for Runtime {
 		fn page_user_order(account_id: AccountId, current: u64, size: u64, sort: u8) -> OrderPage<AccountId, BlockNumber> {
 			StorageOrder::page_user_order(account_id, current, size, sort)
+		}
+		fn get_order_price(file_size: u64,duration: BlockNumber) -> (Balance, Balance) {
+			StorageOrder::get_order_price(file_size, duration)
 		}
 	}
 

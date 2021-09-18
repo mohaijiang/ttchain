@@ -138,7 +138,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// 订单创建
-		OrderCreated(u128,T::AccountId,u64, Vec<u8>,Vec<u8>, T::BlockNumber, u32),
+		OrderCreated(u128,T::AccountId,u64, Vec<u8>,Vec<u8>, T::BlockNumber, u64),
 		/// 订单完成
 		OrderFinish(u64),
 		/// 订单取消

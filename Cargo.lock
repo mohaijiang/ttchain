@@ -7926,6 +7926,7 @@ dependencies = [
  "serde",
  "sp-api",
  "sp-blockchain",
+ "sp-rpc",
  "sp-runtime",
  "storage-order-runtime-api",
 ]
