@@ -138,11 +138,11 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// 订单创建
-		OrderCreated(u64, Vec<u8>, T::AccountId, Vec<u8>, T::BlockNumber, u64),
+		OrderCreated(u128,T::AccountId,u64, Vec<u8>,Vec<u8>, T::BlockNumber, u32),
 		/// 订单完成
 		OrderFinish(u64),
 		/// 订单取消
-		OrderCanceled(u64, Vec<u8>),
+		OrderCanceled(u128,T::AccountId,u64, Vec<u8>),
 		/// 删除订单
 		OrderDeleted(u64),
 		/// 设置初始化费用金额
@@ -262,7 +262,7 @@ pub mod pallet {
 			//创建订单标志位
 			NewOrder::<T>::put(true);
 			//发送订单创建事件
-			Self::deposit_event(Event::OrderCreated(order.index,order.cid,order.account_id,order.file_name,
+			Self::deposit_event(Event::OrderCreated(order.price,order.account_id,order.index,order.cid,order.file_name,
 													order.storage_deadline,order.file_size));
 			// Return a successful DispatchResultWithPostInfo
 			Ok(())
@@ -336,7 +336,7 @@ impl<T: Config> Pallet<T> {
 						// 退款
 						T::PaymentInterface::cancel_order(&order_index,&order_info.account_id);
 						//发送订单取消时间事件
-						Self::deposit_event(Event::OrderCanceled(order_index.clone() , order_info.cid));
+						Self::deposit_event(Event::OrderCanceled(order_info.price, order_info.account_id, order_index.clone(), order_info.cid));
 					}
 				},
 				None => ()
