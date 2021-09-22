@@ -46,7 +46,7 @@ pub mod pallet {
 		/// 区块高度转数字
 		type BlockNumberToNumber: Convert<Self::BlockNumber,u128>;
 
-		/// 订单接口
+		/// 订单支付接口
 		type PaymentInterface: PaymentInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber,Balance = BalanceOf<Self>>;
 
 		/// 文件基本费用
@@ -231,6 +231,8 @@ pub mod pallet {
 			let storage_deadline = block_number + duration;
 			//计算价格
 			let (file_base_price, order_price) = Self::get_order_price(size,duration);
+			// 支付模块记录订单金额
+			T::PaymentInterface::pay_order(&order_index,file_base_price,order_price,tips,storage_deadline,&who)?;
 			//创建订单
 			let order = StorageOrder::new(
 				order_index,
@@ -238,11 +240,12 @@ pub mod pallet {
 				who.clone(),
 				file_name.clone(),
 				T::BalanceToNumber::convert(file_base_price + order_price + tips),
+				T::BalanceToNumber::convert(file_base_price),
+				T::BalanceToNumber::convert(order_price),
+				T::BalanceToNumber::convert(tips),
 				storage_deadline,
 				size,
 				block_number.clone());
-			// 支付模块记录订单金额
-			T::PaymentInterface::pay_order(&order_index,file_base_price,order_price,tips,order.storage_deadline,&who)?;
 			//存入区块数据
 			OrderInfo::<T>::insert(&order_index, order.clone());
 			//获得用户索引个数

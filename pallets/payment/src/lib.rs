@@ -52,7 +52,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		// 可以分润的矿工账户数量
+		/// 可以分润的矿工账户数量
 		type NumberOfIncomeMiner: Get<usize>;
 
 		/// 金额转换数字
@@ -100,6 +100,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn miner_price)]
 	pub(super) type MinerPrice<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BalanceOf<T>, OptionQuery>;
+
+	/// 矿工清算订单金额
+	#[pallet::storage]
+	#[pallet::getter(fn miner_order_calculate)]
+	pub(super) type MinerOrderCalculate<T: Config> =  StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, BalanceOf<T>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -189,6 +194,7 @@ pub mod pallet {
 								MinerPrice::<T>::insert(miner, one_payout_amount);
 							}
 						}
+						MinerOrderCalculate::<T>::mutate(miner, &order_index, |price| { *price = price.saturating_add(one_payout_amount) });
 						if rewarded_count == T::NumberOfIncomeMiner::get() {
 							break;
 						}
@@ -399,5 +405,9 @@ impl<T: Config> PaymentInterface for Pallet<T> {
 			},
 			None => ()
 		}
+	}
+
+	fn get_calculate_income_by_miner_and_order_index(account_id: &Self::AccountId, order_index: &u64) -> Self::Balance {
+		MinerOrderCalculate::<T>::get(account_id,order_index)
 	}
 }

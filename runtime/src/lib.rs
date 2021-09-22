@@ -543,27 +543,7 @@ impl storage_order::Config for Runtime {
 }
 
 parameter_types! {
-	// 工作量上报间隔
-	//todo:: 测试网 主网上线后修改
-	//pub const ReportInterval: BlockNumber = 6 * HOURS;
-	pub const ReportInterval: BlockNumber = 10 * MINUTES;
-	//定义文件副本收益限额 eg：前10可获得奖励
-	pub const AverageIncomeLimit: u8 = 4;
-}
-
-/// worker Runtime config
-impl worker::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-	type ReportInterval = ReportInterval;
-	type BalanceToNumber = ConvertInto;
-	type StorageOrderInterface = StorageOrder;
-	type AverageIncomeLimit = AverageIncomeLimit;
-	type Works = Staking;
-	type BenefitInterface = Benefits;
-}
-
-parameter_types! {
+	//矿工收益个数
 	pub const NumberOfIncomeMiner: usize = 4;
 	//文件质押比率 72%
 	pub const StakingRatio: Perbill = Perbill::from_percent(72);
@@ -584,6 +564,30 @@ impl payment::Config for Runtime {
 	type StorageRatio = StorageRatio;
 	type BenefitInterface = Benefits;
 }
+
+parameter_types! {
+	// 工作量上报间隔
+	//todo:: 测试网 主网上线后修改
+	//pub const ReportInterval: BlockNumber = 6 * HOURS;
+	pub const ReportInterval: BlockNumber = 10 * MINUTES;
+}
+
+/// worker Runtime config
+impl worker::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type ReportInterval = ReportInterval;
+	type BalanceToNumber = ConvertInto;
+	type NumberToBalance = ConvertInto;
+	type StorageOrderInterface = StorageOrder;
+	type NumberOfIncomeMiner = NumberOfIncomeMiner;
+	type Works = Staking;
+	type BenefitInterface = Benefits;
+	type PaymentInterface = Payment;
+	type StorageRatio = StorageRatio;
+}
+
+
 
 parameter_types! {
     pub const BenefitReportWorkCost: Balance = 3 * DOLLARS;
