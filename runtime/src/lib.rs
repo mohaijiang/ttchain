@@ -430,9 +430,7 @@ impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
 }
 
 parameter_types! {
-	//todo:: 测试网 主网上线后修改
-	pub const SessionsPerEra: sp_staking::SessionIndex = 1;
-	//pub const SessionsPerEra: sp_staking::SessionIndex = 6;
+	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
 	// 112 eras (28天)
 	pub const BondingDuration: pallet_staking::EraIndex = 4 * 28;
 	// 108eras 略微少于(28天)
@@ -567,9 +565,7 @@ impl payment::Config for Runtime {
 
 parameter_types! {
 	// 工作量上报间隔
-	//todo:: 测试网 主网上线后修改
-	//pub const ReportInterval: BlockNumber = 6 * HOURS;
-	pub const ReportInterval: BlockNumber = 10 * MINUTES;
+	pub const ReportInterval: BlockNumber = 6 * HOURS;
 }
 
 /// worker Runtime config
