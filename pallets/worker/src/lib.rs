@@ -9,17 +9,34 @@ use sp_std::vec::Vec;
 use frame_support::{
 	traits::{Currency},
 	ensure,
-	dispatch::DispatchResult, pallet_prelude::*
+	dispatch::{DispatchResult, DispatchResultWithPostInfo}, pallet_prelude::*,
+	weights::{
+		Pays
+	}
 };
 use sp_runtime::traits::{Convert, Zero};
-
+use sp_runtime::Perbill;
 use primitives::p_storage_order::StorageOrderInterface;
 use primitives::p_storage_order::StorageOrderStatus;
 use primitives::p_worker::*;
+use primitives::p_benefit::BenefitInterface;
+use primitives::p_payment::PaymentInterface;
 
 mod zk;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+
+use sp_std::collections::btree_map::BTreeMap;
+/// An event handler for reporting works
+pub trait Works<AccountId> {
+	fn report_works(workload_map: BTreeMap<AccountId, u128>, total_workload: u128) -> Weight;
+}
+
+impl<AId> Works<AId> for () {
+	fn report_works(_: BTreeMap<AId, u128>, _: u128) -> Weight { 0 }
+}
+
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -46,11 +63,26 @@ pub mod pallet {
 		/// 金额转换数字
 		type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
 
+		/// 数字转金额
+		type NumberToBalance: Convert<u128,BalanceOf<Self>>;
+
 		/// 订单接口
 		type StorageOrderInterface: StorageOrderInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber>;
 
 		/// 平均收益限额
-		type AverageIncomeLimit: Get<u8>;
+		type NumberOfIncomeMiner: Get<usize>;
+
+		/// 工作量证明上报接口
+		type Works: Works<Self::AccountId>;
+
+		/// 折扣接口
+		type BenefitInterface: BenefitInterface<Self::AccountId, BalanceOf<Self>, NegativeImbalanceOf<Self>>;
+
+		/// 订单支付接口
+		type PaymentInterface: PaymentInterface<AccountId = Self::AccountId, BlockNumber = Self::BlockNumber,Balance = BalanceOf<Self>>;
+
+		/// 存储池分配比率
+		type StorageRatio: Get<Perbill>;
 	}
 
 	/// 矿工个数
@@ -66,12 +98,12 @@ pub mod pallet {
 	/// 总存储
 	#[pallet::storage]
 	#[pallet::getter(fn total_storage)]
-	pub(super) type TotalStorage<T: Config> = StorageValue<_, u64, ValueQuery>;
+	pub(super) type TotalStorage<T: Config> = StorageValue<_, u128, ValueQuery>;
 
 	/// 已用存储
 	#[pallet::storage]
 	#[pallet::getter(fn used_storage)]
-	pub(super) type UsedStorage<T: Config> = StorageValue<_, u64, ValueQuery>;
+	pub(super) type UsedStorage<T: Config> = StorageValue<_, u128, ValueQuery>;
 
 	/// 矿工收益
 	#[pallet::storage]
@@ -81,12 +113,12 @@ pub mod pallet {
 	/// 矿工总存储
 	#[pallet::storage]
 	#[pallet::getter(fn miner_total_storage)]
-	pub(super) type MinerTotalStorage<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
+	pub(super) type MinerTotalStorage<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u128, ValueQuery>;
 
 	/// 矿工已用存储
 	#[pallet::storage]
 	#[pallet::getter(fn miner_used_storage)]
-	pub(super) type MinerUsedStorage<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
+	pub(super) type MinerUsedStorage<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u128, ValueQuery>;
 
 	/// 矿工订单数据
 	#[pallet::storage]
@@ -107,7 +139,6 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn miner_order_income)]
 	pub(super) type MinerOrderIncome<T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, bool, ValueQuery>;
-
 
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -131,8 +162,10 @@ pub mod pallet {
 			if (now % T::ReportInterval::get()).is_zero() {
 				//获得当前阶段
 				let block_number = now -  T::ReportInterval::get();
-				//当前阶段进行健康检查
-				Self::health_check(&block_number);
+				//当前阶段进行健康检查 进行工作量证明上报
+				let (workload_map,total_storage) = Self::health_check(&block_number);
+				//工作量证明上报
+				T::Works::report_works(workload_map,total_storage);
 				//发送健康检查事件
 				Self::deposit_event(Event::HealthCheck(block_number));
 			}
@@ -169,8 +202,8 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn register(
 			origin: OriginFor<T>,
-			total_storage: u64,
-			used_storage: u64
+			total_storage: u128,
+			used_storage: u128
 		) -> DispatchResult {
 			//判断是否签名正确
 			let who = ensure_signed(origin)?;
@@ -187,6 +220,12 @@ pub mod pallet {
 			}
 			//更新存储空间数据
 			Self::update_storage(&who,total_storage,used_storage);
+			//存入当前阶段时空证明
+			//获得当前块高
+			let block_number = <frame_system::Pallet<T>>::block_number();
+			//计算当前阶段
+			let block_number = block_number - (block_number % T::ReportInterval::get());
+			Report::<T>::insert(block_number,&who,ReportInfo::new(Vec::<u64>::new(),total_storage,used_storage));
 			Self::deposit_event(Event::RegisterSuccess(who));
 			Ok(())
 		}
@@ -240,9 +279,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			orders: Vec<u64>,
 			proofs: Vec<Vec<u8>>,
-			total_storage: u64,
-			used_storage: u64
-		) -> DispatchResult {
+			total_storage: u128,
+			used_storage: u128
+		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 			//获得当前阶段
 			//获得当前块高
@@ -265,7 +304,6 @@ pub mod pallet {
 				//添加入矿工订单中
 				MinerOrderSet::<T>::insert(&who,orders.clone());
 			}else{
-
 				// 校验订单的时空证明
 				for index in 0..orders.len() {
 					let order_opt = T::StorageOrderInterface::get_storage_order(&orders[index]);
@@ -278,7 +316,6 @@ pub mod pallet {
 						ensure!(zk_validate,Error::<T>::ProofInvalid);
 					}
 				}
-
 				//订单过滤
 				let miner_orders = miner_orders.into_iter().filter(|index| {
 					let result = orders.contains(index);
@@ -297,9 +334,13 @@ pub mod pallet {
 			//更新存储空间数据
 			Self::update_storage(&who,total_storage,used_storage);
 			//存入时空证明
-			Report::<T>::insert(block_number,who.clone(),ReportInfo::new(orders,total_storage,used_storage));
-			Self::deposit_event(Event::ProofOfSpacetimeFinish(who));
-			Ok(())
+			Report::<T>::insert(block_number,&who,ReportInfo::new(orders,total_storage,used_storage));
+			Self::deposit_event(Event::ProofOfSpacetimeFinish(who.clone()));
+			//存入时空证明后进行判断是否可以免除手续费
+			if T::BenefitInterface::maybe_free_count(&who) {
+				return Ok(Pays::No.into());
+			}
+			Ok(Pays::Yes.into())
 		}
 	}
 }
@@ -308,7 +349,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 
 	///更新个人存储
-	fn update_storage(account_id: &T::AccountId, total_storage: u64, used_storage: u64) {
+	fn update_storage(account_id: &T::AccountId, total_storage: u128, used_storage: u128) {
 		let old_miner_total_storage = MinerTotalStorage::<T>::get(account_id);
 		let old_miner_used_storage = MinerUsedStorage::<T>::get(account_id);
 		//添加矿工总存储
@@ -324,7 +365,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	///进行健康检查
-	fn health_check(block_number: &T::BlockNumber) {
+	fn health_check(block_number: &T::BlockNumber) -> (BTreeMap<T::AccountId, u128>, u128) {
+		//工作量上报数据
+		let mut workload_map = BTreeMap::<T::AccountId, u128>::new();
 		//查询当前矿工节点
 		let miners = Miners::<T>::get().into_iter().filter(|miner| {
 			let result = Report::<T>::contains_key(block_number, miner);
@@ -341,17 +384,29 @@ impl<T: Config> Pallet<T> {
 				});
 				//删除矿工订单信息
 				MinerOrderSet::<T>::remove(miner);
+				//删除矿工存储
+				MinerTotalStorage::<T>::remove(&miner);
+				MinerUsedStorage::<T>::remove(&miner);
+				workload_map.insert(miner.clone(), 0);
+			} else {
+				//添加工作量上报数据
+				let total_storage = MinerTotalStorage::<T>::get(&miner);
+				//todo 关于副本系数获得有效存储空间
+				workload_map.insert(miner.clone(), total_storage);
 			}
 			result
 		}).collect::<Vec<T::AccountId>>();
+		//维护矿工节点个数信息
+		MinerCount::<T>::put(miners.len() as u64);
 		//维护矿工信息
 		Miners::<T>::put(miners);
 		//更新总存储
-		let total_storage = MinerTotalStorage::<T>::iter_values().sum::<u64>();
+		let total_storage = MinerTotalStorage::<T>::iter_values().sum::<u128>();
 		TotalStorage::<T>::put(total_storage);
 		//更新总使存储
-		let used_storage = MinerUsedStorage::<T>::iter_values().sum::<u64>();
+		let used_storage = MinerUsedStorage::<T>::iter_values().sum::<u128>();
 		UsedStorage::<T>::put(used_storage);
+		(workload_map,total_storage)
 	}
 
 	///添加订单矿工信息
@@ -361,7 +416,7 @@ impl<T: Config> Pallet<T> {
 			return;
 		}
 		//判断当前矿工是否在收益列表 如果是则进行修改
-		if miners.len() < (T::AverageIncomeLimit::get() - 1)  as usize {
+		if miners.len() < T::NumberOfIncomeMiner::get() - 1 {
 			MinerOrderIncome::<T>::insert(&miner,order_index,true);
 		}
 		//添加订单信息
@@ -375,7 +430,7 @@ impl<T: Config> Pallet<T> {
 		let mut miners = MinerSetOfOrder::<T>::get(order_index);
 		//查询当前订单是否在收益列表中 如果在则将其去除并将第11位存入收益列表
 		if MinerOrderIncome::<T>::get(miner,order_index) {
-			let i = T::AverageIncomeLimit::get() as usize;
+			let i = T::NumberOfIncomeMiner::get();
 			if let Some(other_miner) = miners.get(i) {
 				MinerOrderIncome::<T>::insert(other_miner,order_index,true);
 			}
@@ -413,8 +468,21 @@ impl<T: Config> Pallet<T> {
 			for index in sub_orders {
 				match T::StorageOrderInterface::get_storage_order(index){
 					Some(t) => {
+						//当前收益标志位
 						let income_flag = MinerOrderIncome::<T>::get(account_id,index);
-						list.push(MinerOrder::new(t,income_flag));
+						//当前预估收益
+						let mut estimated_income = 0;
+						//获得当前订单存储人数
+						let target_reward_count = MinerSetOfOrder::<T>::get(index).len().min(T::NumberOfIncomeMiner::get()) as u128;
+						if target_reward_count > 0 && income_flag {
+							//通过当前订单金额进行计算预估收益 （订单金额×存储金额比率 + 小费） /订单存储人数
+							let income = (T::StorageRatio::get() * T::NumberToBalance::convert(t.order_price) + T::NumberToBalance::convert(t.tips)) / T::NumberToBalance::convert(target_reward_count);
+							estimated_income = T::BalanceToNumber::convert(income);
+						}
+						//查询当前清算价格
+						let calculate_income = T::PaymentInterface::get_calculate_income_by_miner_and_order_index(account_id, index);
+						let calculate_income = T::BalanceToNumber::convert(calculate_income);
+						list.push(MinerOrder::new(t,estimated_income, calculate_income));
 					},
 					None => ()
 				}
@@ -422,7 +490,6 @@ impl<T: Config> Pallet<T> {
 		}
 		list
 	}
-
 }
 
 impl<T: Config> WorkerInterface for Pallet<T> {
@@ -445,5 +512,9 @@ impl<T: Config> WorkerInterface for Pallet<T> {
 				MinerIncome::<T>::insert(account_id,income);
 			}
 		}
+	}
+
+	fn get_total_and_used() -> (u128, u128) {
+		(Self::total_storage(), Self::used_storage())
 	}
 }

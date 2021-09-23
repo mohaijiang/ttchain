@@ -8,6 +8,7 @@ pub mod constants;
 pub mod p_storage_order;
 pub mod p_worker;
 pub mod p_payment;
+pub mod p_benefit;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -27,3 +28,6 @@ pub type Index = u32;
 
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
+
+/// Counter for the number of eras that have passed.
+pub type EraIndex = u32;
