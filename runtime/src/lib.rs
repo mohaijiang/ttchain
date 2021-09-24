@@ -2,7 +2,7 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit="256"]
 
-// Make the WASM binary available.
+mod impls;// Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
@@ -11,10 +11,7 @@ use sp_core::{
 	crypto::KeyTypeId,
 	OpaqueMetadata,
 };
-use sp_runtime::{
-	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys,
-	transaction_validity::{TransactionValidity, TransactionSource, TransactionPriority},
-};
+use sp_runtime::{Perquintill, FixedPointNumber, ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, transaction_validity::{TransactionValidity, TransactionSource, TransactionPriority}};
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, AccountIdLookup, NumberFor, ConvertInto,
 	OpaqueKeys,
@@ -45,22 +42,24 @@ pub use frame_support::{
 	},
 	debug,RuntimeDebug,
 };
-use pallet_transaction_payment::CurrencyAdapter;
+pub use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment, FeeDetails, OnChargeTransaction};
 use sp_runtime::curve::PiecewiseLinear;
 use pallet_session::{historical as pallet_session_historical};
 pub use pallet_staking::StakerStatus;
-use frame_election_provider_support::onchain;
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
 };
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 
+/// Implementations of some helper traits passed into runtime modules as associated types.
+use impls::{CurrencyToVoteHandler, Author, OneTenthFee, CurrencyAdapter};
+
 /// 引用元数据
 pub use primitives::{
 	p_storage_order::OrderPage,
 	p_worker::MinerOrderPage,
-	constants::{time::*},
+	constants::{time::*,currency::*},
 	*
 };
 
@@ -97,13 +96,7 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 /// We allow for 2 seconds of compute with a 6 second average block time.
 const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
 
-pub mod currency {
-	use super::Balance;
-	pub const MILLICENTS: Balance = 1_000_000_000;
-	pub const CENTS: Balance = 1_000 * MILLICENTS;    // assume this is worth about a cent.
-	pub const DOLLARS: Balance = 100 * CENTS;
-}
-pub use currency::*;
+
 // To learn more about runtime versioning and what each of the following value means:
 //   https://substrate.dev/docs/en/knowledgebase/runtime/upgrades#runtime-versioning
 #[sp_version::runtime_version]
@@ -135,6 +128,7 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 2400;
+	pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
 	pub const Version: RuntimeVersion = VERSION;
 	pub RuntimeBlockLength: BlockLength =
 		BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
@@ -221,13 +215,7 @@ impl pallet_utility::Config for Runtime {
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
-pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 10 * MINUTES;
-pub const EPOCH_DURATION_IN_SLOTS: u64 = {
-	const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
 
-	(EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
-};
-pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
 pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 	sp_consensus_babe::BabeEpochConfiguration {
 		c: PRIMARY_PROBABILITY,
@@ -237,6 +225,8 @@ pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 parameter_types! {
     pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS;
     pub const ExpectedBlockTime: u64 = MILLISECS_PER_BLOCK;
+	pub const ReportLongevity: u64 =
+		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
 }
 
 impl pallet_babe::Config for Runtime {
@@ -256,7 +246,7 @@ impl pallet_babe::Config for Runtime {
 		pallet_babe::AuthorityId,
 	)>>::IdentificationTuple;
 
-	type HandleEquivocation = ();
+	type HandleEquivocation = pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 
 	type WeightInfo = ();
 
@@ -276,9 +266,19 @@ impl pallet_grandpa::Config for Runtime {
 		GrandpaId,
 	)>>::IdentificationTuple;
 
-	type HandleEquivocation = ();
+	type HandleEquivocation = pallet_grandpa::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 
 	type WeightInfo = ();
+}
+
+parameter_types! {
+    pub OffencesWeightSoftLimit: Weight = Perbill::from_percent(60) * MaximumBlockWeight::get();
+}
+
+impl pallet_offences::Config for Runtime {
+	type Event = Event;
+	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
+	type OnOffenceHandler = Staking;
 }
 
 parameter_types! {
@@ -291,6 +291,25 @@ impl pallet_timestamp::Config for Runtime {
 	type OnTimestampSet = Babe;
 	type MinimumPeriod = MinimumPeriod;
 	type WeightInfo = pallet_timestamp::weights::SubstrateWeight<Runtime>;
+}
+
+type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
+
+pub struct DealWithFees;
+impl OnUnbalanced<NegativeImbalance> for DealWithFees {
+	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
+		if let Some(fees) = fees_then_tips.next() {
+			// for fees, 80% to treasury, 20% to author
+			let mut split = fees.ration(80, 20);
+			if let Some(tips) = fees_then_tips.next() {
+				// for tips, if any, 80% to treasury, 20% to author (though this can be anything)
+				tips.ration_merge_into(80, 20, &mut split);
+			}
+			//todo 目前给国库的金额取消
+			//Treasury::on_unbalanced(split.0);
+			Author::on_unbalanced(split.1);
+		}
+	}
 }
 
 parameter_types! {
@@ -313,14 +332,18 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 1;
+    pub const TransactionByteFee: Balance = MILLICENTS / 100;
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
+	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-	type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
+	type OnChargeTransaction = CurrencyAdapter<Balances, Benefits, DealWithFees>;
 	type TransactionByteFee = TransactionByteFee;
-	type WeightToFee = IdentityFee<Balance>;
-	type FeeMultiplierUpdate = ();
+	type WeightToFee = OneTenthFee<Balance>;
+	type FeeMultiplierUpdate =
+	TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -328,11 +351,6 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-/// Configure the pallet-template in pallets/template.
-impl pallet_template::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-}
 
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
@@ -413,11 +431,17 @@ impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
 
 parameter_types! {
 	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
-	pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
-	pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
+	// 112 eras (28天)
+	pub const BondingDuration: pallet_staking::EraIndex = 4 * 28;
+	// 108eras 略微少于(28天)
+	pub const SlashDeferDuration: pallet_staking::EraIndex = 4 * 27;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 	pub const MaxNominatorRewardedPerValidator: u32 = 256;
 	pub OffchainRepeat: BlockNumber = 5;
+	// 60 eras means 15 days if era = 6 hours
+    pub const MarketStakingPotDuration: u32 = 60;
+	// 1000 * CRUs / TB, since we treat 1 TB = 1_000_000_000_000_000, so the ratio = `1000`
+    pub const SPowerRatio: u128 = 1000;
 }
 
 /// staking Runtime config
@@ -430,13 +454,8 @@ impl pallet_staking::Config for Runtime {
 	//调用Timestamp模块
 	type UnixTime = Timestamp;
 	//将余额转换为选举用的数字
-	type CurrencyToVote = U128CurrencyToVote;
-	//抵押者的总奖励=年通膨胀率*代币发行总量/每年周期数           //年通膨胀率=npos_token_staked / total_tokens
-	// staker_payout = yearly_inflation(npos_token_staked / total_tokens) * total_tokens / era_per_year
-	//RewardRemainder剩余的奖励 = 每年最大膨胀率*代币总数/每年周期数-给抵押者的总奖励
-	//remaining_payout = max_yearly_inflation * total_tokens / era_per_year - staker_payout
-	//如果最大奖励减去实际奖励还有剩余奖励，将剩余奖励收归国库，用于支持生态发展支出
-	//Treasury模块：提供一个资金池，能够由抵押者们来管理，在这个国库系统中，能够从这个资金池中发起发费提案。
+	type CurrencyToVote = CurrencyToVoteHandler;
+	//剩余金额
 	type RewardRemainder = ();
 	//类型时间
 	type Event = Event;
@@ -455,52 +474,20 @@ impl pallet_staking::Config for Runtime {
 	type SlashCancelOrigin = frame_system::EnsureRoot<Self::AccountId>;
 	//给session提供的接口
 	type SessionInterface = Self;
-	//每个周期的花费
-	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	//准确估计下一个session的改变，或者做一个最好的猜测
 	type NextNewSession = Session;
 	//为每个验证者奖励的提名者的最大数目。
 	//对于每个验证者，只有$ MaxNominatorrewardedPervalidator最大的Stakers可以申请他们的奖励。 这用于限制提名人支付的I / O成本。
 	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
-	//提供选举功能
-	type ElectionProvider = ElectionProviderMultiPhase;
 	//权重信息
 	type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
-	type GenesisElectionProvider = 	onchain::OnChainSequentialPhragmen<
-		pallet_election_provider_multi_phase::OnChainConfig<Self>,
-	>;
+	type SPowerRatio = SPowerRatio;
+	type MarketStakingPotDuration = MarketStakingPotDuration;
+	type PaymentInterface = Payment;
+	type BenefitInterface = Benefits;
 }
 
-parameter_types! {
-	// phase durations. 1/4 of the last session for each.
-	pub const SignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
-	pub const UnsignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
 
-	// signed config
-	pub const SignedMaxSubmissions: u32 = 10;
-	pub const SignedRewardBase: Balance = 1 * DOLLARS;
-	pub const SignedDepositBase: Balance = 1 * DOLLARS;
-	pub const SignedDepositByte: Balance = 1 * CENTS;
-
-	// fallback: no on-chain fallback.
-	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
-		pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
-
-	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
-
-	// miner configs
-	pub const MultiPhaseUnsignedPriority: TransactionPriority = StakingUnsignedPriority::get() - 1u64;
-	pub const MinerMaxIterations: u32 = 10;
-	pub MinerMaxWeight: Weight = RuntimeBlockWeights::get()
-		.get(DispatchClass::Normal)
-		.max_extrinsic.expect("Normal extrinsics have a weight limit configured; qed")
-		.saturating_sub(BlockExecutionWeight::get());
-	// Solution can occupy 90% of normal block size
-	pub MinerMaxLength: u32 = Perbill::from_rational(9u32, 10) *
-		*RuntimeBlockLength::get()
-		.max
-		.get(DispatchClass::Normal);
-}
 
 sp_npos_elections::generate_solution_type!(
 	#[compact]
@@ -514,34 +501,6 @@ sp_npos_elections::generate_solution_type!(
 pub const MAX_NOMINATIONS: u32 =
 	<NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
 
-///election_provider_multi_phase  Runtime config
-impl pallet_election_provider_multi_phase::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-	type SignedPhase = SignedPhase;
-	type UnsignedPhase = UnsignedPhase;
-	type SolutionImprovementThreshold = SolutionImprovementThreshold;
-	type OffchainRepeat = OffchainRepeat;
-	type MinerMaxIterations = MinerMaxIterations;
-	type MinerMaxWeight = MinerMaxWeight;
-	type MinerMaxLength = MinerMaxLength;
-	type MinerTxPriority = MultiPhaseUnsignedPriority;
-	type SignedMaxSubmissions = SignedMaxSubmissions;
-	type SignedRewardBase = SignedRewardBase;
-	type SignedDepositBase = SignedDepositBase;
-	type SignedDepositByte = SignedDepositByte;
-	type SignedDepositWeight = ();
-	type SignedMaxWeight = MinerMaxWeight;
-	type SlashHandler = (); // burn slashes
-	type RewardHandler = (); // nothing to do upon rewards
-	type DataProvider = Staking;
-	type OnChainAccuracy = Perbill;
-	type CompactSolution = NposCompactSolution16;
-	type Fallback = Fallback;
-	type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
-	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
-	type BenchmarkingConfig = ();
-}
 
 ///authority discovery  Runtime config
 impl pallet_authority_discovery::Config for Runtime {}
@@ -549,7 +508,18 @@ impl pallet_authority_discovery::Config for Runtime {}
 
 parameter_types! {
 	pub const OrderWaitingTime: BlockNumber = 30 * MINUTES;
-	pub const PerByteDayPrice: u64 = 10;
+	// 文件基础费用
+	pub const FileBaseInitFee: Balance = 0;
+	// 文件个数费用
+	pub const FilesCountInitPrice: Balance = 1 * MICRO;
+	// 文件每天价格费用 每MB每天费用
+	pub const FileSizeInitPrice: Balance = 10 * NANO;
+	// 存储参考比率. reported_files_size / total_capacity
+	pub const StorageReferenceRatio: (u128, u128) = (25, 100); // 25/100 = 25%
+	// 价格上升比率
+	pub StorageIncreaseRatio: Perbill = Perbill::from_rational(1u64, 100000);
+	// 价格下浮比率
+	pub StorageDecreaseRatio: Perbill = Perbill::from_rational(1u64, 100000);
 }
 
 /// storage order Runtime config
@@ -557,30 +527,26 @@ impl storage_order::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type OrderWaitingTime = OrderWaitingTime;
-	type PerByteDayPrice = PerByteDayPrice;
 	type BalanceToNumber = ConvertInto;
 	type BlockNumberToNumber = ConvertInto;
 	type PaymentInterface = Payment;
+
+	type FileBaseInitFee = FileBaseInitFee;
+	type FilesCountInitPrice = FilesCountInitPrice;
+	type FileSizeInitPrice = FileSizeInitPrice;
+	type StorageReferenceRatio = StorageReferenceRatio;
+	type StorageIncreaseRatio = StorageIncreaseRatio;
+	type StorageDecreaseRatio = StorageDecreaseRatio;
+	type WorkerInterface = Worker;
 }
 
 parameter_types! {
-	pub const ReportInterval: BlockNumber = 1 * DAYS;
-	//定义文件副本收益限额 eg：前10可获得奖励
-	pub const AverageIncomeLimit: u8 = 10;
-}
-
-/// storage order Runtime config
-impl worker::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-	type ReportInterval = ReportInterval;
-	type BalanceToNumber = ConvertInto;
-	type StorageOrderInterface = StorageOrder;
-	type AverageIncomeLimit = AverageIncomeLimit;
-}
-
-parameter_types! {
-	pub const NumberOfIncomeMiner: usize = 10;
+	//矿工收益个数
+	pub const NumberOfIncomeMiner: usize = 4;
+	//文件质押比率 72%
+	pub const StakingRatio: Perbill = Perbill::from_percent(72);
+    //文件存储比率 18%
+	pub const StorageRatio: Perbill = Perbill::from_percent(18);
 }
 
 /// Configure the payment in pallets/payment.
@@ -592,6 +558,48 @@ impl payment::Config for Runtime {
 	type Currency = Balances;
 	type StorageOrderInterface = StorageOrder;
 	type WorkerInterface = Worker;
+	type StakingRatio = StakingRatio;
+	type StorageRatio = StorageRatio;
+	type BenefitInterface = Benefits;
+}
+
+parameter_types! {
+	// 工作量上报间隔
+	pub const ReportInterval: BlockNumber = 6 * HOURS;
+}
+
+/// worker Runtime config
+impl worker::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type ReportInterval = ReportInterval;
+	type BalanceToNumber = ConvertInto;
+	type NumberToBalance = ConvertInto;
+	type StorageOrderInterface = StorageOrder;
+	type NumberOfIncomeMiner = NumberOfIncomeMiner;
+	type Works = Staking;
+	type BenefitInterface = Benefits;
+	type PaymentInterface = Payment;
+	type StorageRatio = StorageRatio;
+}
+
+
+
+parameter_types! {
+    pub const BenefitReportWorkCost: Balance = 3 * DOLLARS;
+    pub const BenefitsLimitRatio: Perbill = Perbill::from_percent(1);
+    pub const BenefitMarketCostRatio: Perbill = Perbill::one();
+}
+
+///  benefits Runtime config
+impl benefits::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BenefitReportWorkCost = BenefitReportWorkCost;
+	type BenefitsLimitRatio = BenefitsLimitRatio;
+	type BenefitMarketCostRatio = BenefitMarketCostRatio;
+	type BondingDuration = BondingDuration;
+	type WeightInfo = benefits::weight::WeightInfo<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -618,8 +626,6 @@ construct_runtime!(
 		//共识模块
 		//Authorship 模块用于追踪当前区块的创建者，以及邻近的 “叔块”。
 		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
-		//选举模块
-		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
 		//质押模块
 		Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>},
 		//Session 模块允许验证人管理其会话密钥，提供了更改会话长度的及处理会话轮换的功能。
@@ -630,6 +636,8 @@ construct_runtime!(
 		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
 		//Substrate 的 core/authority-discovery 库使用了 Authority Discovery 模块来获取当前验证者集，获取本节点验证者ID，以及签署和验证与本节点与其他权威节点之间交换的消息。
 		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config},
+		//Offences惩罚模块
+        Offences: pallet_offences::{Pallet, Storage, Event},
 
 		//其他模块
 		//Sudo pallet用来授予某个账户 (称为 "sudo key") 权限去执行需要Root权限的交易函数，或者是指定一个新账户来替代掉原来的sudo key。
@@ -640,10 +648,10 @@ construct_runtime!(
 
 		//ttc-pallet
 		// Include the custom logic from the pallet-template in the runtime.
-		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
 		StorageOrder: storage_order::{Pallet, Call, Storage, Event<T>},
 		Worker: worker::{Pallet, Call, Storage, Event<T>},
 		Payment: payment::{Pallet, Call, Storage, Event<T>},
+		Benefits: benefits::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -795,9 +803,12 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl storage_order_runtime_api::StorageOrderApi<Block, AccountId, BlockNumber> for Runtime {
+	impl storage_order_runtime_api::StorageOrderApi<Block, AccountId, BlockNumber,Balance> for Runtime {
 		fn page_user_order(account_id: AccountId, current: u64, size: u64, sort: u8) -> OrderPage<AccountId, BlockNumber> {
 			StorageOrder::page_user_order(account_id, current, size, sort)
+		}
+		fn get_order_price(file_size: u64,duration: BlockNumber) -> (Balance, Balance) {
+			StorageOrder::get_order_price(file_size, duration)
 		}
 	}
 

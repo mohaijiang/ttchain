@@ -5,6 +5,16 @@ use sp_std::vec::Vec;
 use sp_debug_derive::RuntimeDebug;
 use sp_std::vec;
 
+
+
+pub const BASE_FEE_UPDATE_SLOT: u32 = 600;
+pub const BASE_FEE_UPDATE_OFFSET: u32 = 22;
+
+pub const PRICE_UPDATE_SLOT: u32 = 300;
+pub const PRICE_UPDATE_OFFSET: u32 = 10;
+pub const FILES_COUNT_REFERENCE: u64 = 20_000_000; // 20_000_000 / 50_000_000 = 40%
+
+
 #[derive( Encode, Decode, RuntimeDebug, PartialEq, Eq, Copy, Clone)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum StorageOrderStatus {
@@ -14,6 +24,8 @@ pub enum StorageOrderStatus {
     Finished,
     /// 已取消.
     Canceled,
+    /// 已清算
+    Cleared,
 }
 
 impl Default for StorageOrderStatus {
@@ -36,10 +48,19 @@ pub struct StorageOrder<AccountId, BlockNumber> {
     /// 支付价格
     #[cfg_attr(feature = "std", serde(serialize_with = "string_serialize"))]
     pub price: u128,
+    /// 文件基本价格
+    #[cfg_attr(feature = "std", serde(serialize_with = "string_serialize"))]
+    pub file_base_price: u128,
+    /// 文件存储价格
+    #[cfg_attr(feature = "std", serde(serialize_with = "string_serialize"))]
+    pub order_price: u128,
+    /// 小费
+    #[cfg_attr(feature = "std", serde(serialize_with = "string_serialize"))]
+    pub tips: u128,
     /// 存储期限
     pub storage_deadline: BlockNumber,
     /// 文件大小
-    pub file_size: u32,
+    pub file_size: u64,
     /// 块高
     pub block_number: BlockNumber,
     /// 订单状态
@@ -53,13 +74,17 @@ pub struct StorageOrder<AccountId, BlockNumber> {
 impl<AccountId, BlockNumber> StorageOrder<AccountId, BlockNumber> {
 
     pub fn new (index: u64, cid: Vec<u8>, account_id: AccountId, file_name: Vec<u8>,
-            price: u128, storage_deadline: BlockNumber, file_size: u32, block_number: BlockNumber) -> Self {
+                price: u128, file_base_price: u128,order_price: u128,tips: u128,
+                storage_deadline: BlockNumber, file_size: u64, block_number: BlockNumber) -> Self {
         StorageOrder {
             index,
             cid,
             account_id,
             file_name,
             price,
+            file_base_price,
+            order_price,
+            tips,
             storage_deadline,
             file_size,
             block_number,
@@ -108,4 +133,6 @@ pub trait StorageOrderInterface {
     fn add_order_replication(order_index: &u64);
     /// 减少订单副本
     fn sub_order_replication(order_index: &u64);
+    /// 更新订单状态为已清算
+    fn update_order_status_to_cleared(order_index: &u64);
 }
