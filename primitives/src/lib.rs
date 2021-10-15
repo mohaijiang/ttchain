@@ -9,6 +9,7 @@ pub mod p_storage_order;
 pub mod p_worker;
 pub mod p_payment;
 pub mod p_benefit;
+pub mod p_computing_power;
 
 /// An index to a block.
 pub type BlockNumber = u32;
