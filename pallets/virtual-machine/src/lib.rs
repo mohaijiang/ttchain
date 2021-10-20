@@ -91,8 +91,7 @@ pub mod pallet {
 			bandwidth: u32,
 			server_period: u32,
 			price: u128,
-			operating_system: Vec<u8>,
-			create_user_id: Vec<u8>
+			operating_system: Vec<u8>
 		) -> DispatchResult {
 			//判断是否签名正确
 			let who = ensure_signed(origin)?;
@@ -119,7 +118,6 @@ pub mod pallet {
 				server_period.clone(),
 				price.clone(),
 				operating_system.clone(),
-				create_user_id.clone(),
 				block_number.clone());
 			//存入虚拟机商品信息
 			VirtualMachineInfo::<T>::insert(id.clone(), virtual_machine_info.clone());
@@ -140,4 +138,13 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 
+	pub fn get_virtual_machine_info(id: Vec<u8>) -> ExitVirtualMachine {
+		let params:Vec<u8> = id.to_vec();
+		let mut exit_flag = false;
+		if let Some(virtual_machine_info) = VirtualMachineInfo::<T>::get(params){
+			exit_flag = true
+		}
+		let exitVirtualMachine = ExitVirtualMachine::new(exit_flag);
+		exitVirtualMachine
+	}
 }

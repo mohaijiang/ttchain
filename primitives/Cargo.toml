@@ -22,8 +22,7 @@ std = [
     'frame-system/std',
     'sp-std/std',
     'sp-runtime/std',
-    "frame-support/std",
-
+    "frame-support/std"
 ]
 
 [dependencies.codec]

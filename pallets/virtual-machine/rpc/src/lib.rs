@@ -9,12 +9,18 @@ use sp_runtime::{generic::BlockId, traits::{Block as BlockT, MaybeDisplay}};
 use std::sync::Arc;
 use codec::Codec;
 use sp_rpc::number::NumberOrHex;
-// use virtual_machine_runtime_api::VirtualMachineList;
+use virtual_machine_runtime_api::ExitVirtualMachine;
 pub use virtual_machine_runtime_api::VirtualMachineApi as VirtualMachineRuntimeApi;
+use sp_core::{
+	Bytes
+};
 
 
 #[rpc]
 pub trait VirtualMachineApi<Block, AccountId, BlockNumber, Balance> {
+
+	#[rpc(name = "virtualMachine_getVirtualMachineInfo")]
+	fn get_virtual_machine_info(&self,id: Bytes) -> Result<ExitVirtualMachine>;
 
 }
 
@@ -64,4 +70,16 @@ impl<C, Block, AccountId, BlockNumber, Balance> VirtualMachineApi<<Block as Bloc
         BlockNumber: Clone + std::fmt::Display + Codec,
         Balance: Codec + MaybeDisplay + Copy + TryInto<NumberOrHex> + std::ops::Add<Output = Balance>,
 {
+	fn get_virtual_machine_info(&self,id: Bytes) -> Result<ExitVirtualMachine> {
+		let api = self.client.runtime_api();
+		let best = self.client.info().best_hash;
+		let at = BlockId::hash(best);
+		let parm =  id.to_vec();
+		let runtime_api_result = api.get_virtual_machine_info(&at,parm);
+		runtime_api_result.map_err(|e| RpcError {
+			code: ErrorCode::ServerError(9876), // No real reason for this value
+			message: "Something wrong".into(),
+			data: Some(format!("{:?}", e).into()),
+		})
+	}
 }

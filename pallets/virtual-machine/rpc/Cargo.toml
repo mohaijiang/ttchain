@@ -53,6 +53,11 @@ version = '3.0.0'
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
+[dependencies.sp-core]
+default-features = false
+git = 'https://gitee.com/mohaijiang/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
 
 [features]
 default = ["std"]
@@ -62,4 +67,5 @@ std = [
     "sp-api/std",
     "sp-runtime/std",
     "virtual-machine-runtime-api/std",
+	"sp-core/std"
 ]

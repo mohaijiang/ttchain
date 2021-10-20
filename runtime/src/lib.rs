@@ -59,7 +59,7 @@ use impls::{CurrencyToVoteHandler, Author, OneTenthFee, CurrencyAdapter};
 pub use primitives::{
 	p_storage_order::OrderPage,
 	p_worker::MinerOrderPage,
-	p_computing_power::VirtualMachineList,
+	p_computing_power::ExitVirtualMachine,
 	constants::{time::*,currency::*},
 	*
 };
@@ -821,6 +821,9 @@ impl_runtime_apis! {
 	}
 
 	impl virtual_machine_runtime_api::VirtualMachineApi<Block, AccountId, BlockNumber, Balance> for Runtime {
+		fn get_virtual_machine_info(id:Vec<u8>) -> ExitVirtualMachine {
+			VirtualMachine::get_virtual_machine_info(id)
+		}
 	}
 
 	impl worker_runtime_api::WorkerApi<Block, AccountId, BlockNumber> for Runtime {

@@ -32,8 +32,6 @@ pub struct VirtualMachine<AccountId,BlockNumber> {
 	pub price: u128,
 	///操作系统
 	pub operating_system: Vec<u8>,
-	///创建人
-	pub create_user_id: Vec<u8>,
 	///创建时间(区块高度)
 	pub block_number: BlockNumber
 
@@ -41,7 +39,7 @@ pub struct VirtualMachine<AccountId,BlockNumber> {
 
 impl<AccountId,BlockNumber> VirtualMachine<AccountId,BlockNumber> {
 	pub fn new (id: Vec<u8>,account_id:AccountId,server_ipv4: Vec<u8>,server_port: u32,cpu_cores: u32,ram_size: u128,disk_size: u128,bandwidth: u32,server_period: u32,
-				price: u128,operating_system: Vec<u8>,create_user_id: Vec<u8>,block_number: BlockNumber) -> Self {
+				price: u128,operating_system: Vec<u8>,block_number: BlockNumber) -> Self {
 		VirtualMachine {
 			id,
 			account_id,
@@ -54,12 +52,24 @@ impl<AccountId,BlockNumber> VirtualMachine<AccountId,BlockNumber> {
 			server_period,
 			price,
 			operating_system,
-			create_user_id,
 			block_number
 		}
 	}
 }
 
+#[derive(Encode, Decode, RuntimeDebug,Clone, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct ExitVirtualMachine {
+	pub exit_flag: bool
+}
+
+impl ExitVirtualMachine {
+	pub fn new (exit_flag: bool) -> Self {
+		ExitVirtualMachine {
+			exit_flag
+		}
+	}
+}
 #[derive(Encode, Decode, RuntimeDebug, Clone, Eq, PartialEq, Default)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct VirtualMachineList<AccountId,BlockNumber> {

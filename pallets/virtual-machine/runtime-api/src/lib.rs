@@ -4,7 +4,8 @@
 
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
-pub use primitives::p_computing_power::VirtualMachineList;
+use sp_std::vec::Vec;
+pub use primitives::p_computing_power::ExitVirtualMachine;
 use codec::Codec;
 
 sp_api::decl_runtime_apis! {
@@ -14,5 +15,6 @@ sp_api::decl_runtime_apis! {
         BlockNumber: Codec,
         Balance: Codec
     {
+		fn get_virtual_machine_info(id:Vec<u8>) -> ExitVirtualMachine;
     }
 }
