@@ -4042,6 +4042,7 @@ dependencies = [
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "ttc-primitives",
+ "virtual-machine-rpc",
  "worker-rpc",
 ]
 
@@ -4098,6 +4099,8 @@ dependencies = [
  "storage-order-runtime-api",
  "substrate-wasm-builder",
  "ttc-primitives",
+ "virtual-machine",
+ "virtual-machine-runtime-api",
  "worker",
  "worker-runtime-api",
 ]
@@ -8919,6 +8922,54 @@ name = "version_check"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
+
+[[package]]
+name = "virtual-machine"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "payment",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 3.0.0 (git+https://gitee.com/mohaijiang/substrate.git?tag=monthly-2021-07)",
+ "ttc-primitives",
+]
+
+[[package]]
+name = "virtual-machine-rpc"
+version = "3.0.0"
+dependencies = [
+ "futures 0.3.15",
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "parity-scale-codec",
+ "sc-rpc",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-core",
+ "sp-rpc",
+ "sp-runtime",
+ "virtual-machine-runtime-api",
+]
+
+[[package]]
+name = "virtual-machine-runtime-api"
+version = "3.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "serde_json",
+ "sp-api",
+ "sp-std 3.0.0 (git+https://gitee.com/mohaijiang/substrate.git?tag=monthly-2021-07)",
+ "ttc-primitives",
+]
 
 [[package]]
 name = "void"

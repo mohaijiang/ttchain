@@ -26,6 +26,7 @@ runtime-benchmarks = [
     'pallet-timestamp/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
     'storage-order/runtime-benchmarks',
+	'virtual-machine/runtime-benchmarks'
 ]
 std = [
     "sp-authority-discovery/std",
@@ -81,6 +82,8 @@ std = [
     'sp-version/std',
     'storage-order/std',
     'storage-order-runtime-api/std',
+	'virtual-machine/std',
+	'virtual-machine-runtime-api/std',
     'worker/std',
     'benefits/std',
     'worker-runtime-api/std',
@@ -190,6 +193,16 @@ version = '3.0.0'
 [dependencies.storage-order-runtime-api]
 default-features = false
 path = '../pallets/storage-order/runtime-api'
+version = '3.0.0'
+
+[dependencies.virtual-machine]
+default-features = false
+path = '../pallets/virtual-machine'
+version = '3.0.0'
+
+[dependencies.virtual-machine-runtime-api]
+default-features = false
+path = '../pallets/virtual-machine/runtime-api'
 version = '3.0.0'
 
 [dependencies.benefits]

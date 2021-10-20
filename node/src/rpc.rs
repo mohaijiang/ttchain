@@ -97,6 +97,7 @@ pub fn create_full<C, P ,SC, B>(
 	C::Api: BabeApi<Block>,
 	C::Api: storage_order_rpc::StorageRuntimeApi<Block, AccountId, BlockNumber, Balance>,
 	C::Api: worker_rpc::WorkerRuntimeApi<Block, AccountId, BlockNumber>,
+	C::Api: virtual_machine_rpc::VirtualMachineRuntimeApi<Block, AccountId, BlockNumber,Balance>,
 	P: TransactionPool + 'static,
 	SC: SelectChain<Block> +'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
@@ -106,6 +107,7 @@ pub fn create_full<C, P ,SC, B>(
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
 	use storage_order_rpc::{StorageOrderApi , StorageOrder};
 	use worker_rpc::{WorkerApi , Worker};
+	use virtual_machine_rpc::{VirtualMachineApi, VirtualMachine};
 
 	let mut io = jsonrpc_core::IoHandler::default();
 	let FullDeps {
@@ -183,6 +185,9 @@ pub fn create_full<C, P ,SC, B>(
 		WorkerApi::to_delegate(Worker::new(client.clone()),
 	));
 
+	io.extend_with(
+		VirtualMachineApi::to_delegate(VirtualMachine::new(client.clone()),
+	));
 	// Extend this RPC with a custom API by using the following syntax.
 	// `YourRpcStruct` should have a reference to a client, which is needed
 	// to call into the runtime.

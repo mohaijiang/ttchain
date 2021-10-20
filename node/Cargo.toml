@@ -275,5 +275,11 @@ default-features = false
 path = '../pallets/worker/rpc'
 version = '3.0.0'
 
+[dependencies.virtual-machine-rpc]
+default-features = false
+path = '../pallets/virtual-machine/rpc'
+version = '3.0.0'
+
+
 [[bin]]
 name = 'node-template'

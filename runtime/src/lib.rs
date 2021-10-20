@@ -59,6 +59,7 @@ use impls::{CurrencyToVoteHandler, Author, OneTenthFee, CurrencyAdapter};
 pub use primitives::{
 	p_storage_order::OrderPage,
 	p_worker::MinerOrderPage,
+	p_computing_power::ExitVirtualMachine,
 	constants::{time::*,currency::*},
 	*
 };
@@ -540,6 +541,12 @@ impl storage_order::Config for Runtime {
 	type WorkerInterface = Worker;
 }
 
+/// virtual_machine Runtime config
+impl virtual_machine::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+}
+
 parameter_types! {
 	//矿工收益个数
 	pub const NumberOfIncomeMiner: usize = 4;
@@ -652,6 +659,7 @@ construct_runtime!(
 		Worker: worker::{Pallet, Call, Storage, Event<T>},
 		Payment: payment::{Pallet, Call, Storage, Event<T>},
 		Benefits: benefits::{Pallet, Call, Storage, Event<T>},
+		VirtualMachine: virtual_machine::{Pallet, Call, Storage, Event<T>}
 	}
 );
 
@@ -809,6 +817,12 @@ impl_runtime_apis! {
 		}
 		fn get_order_price(file_size: u64,duration: BlockNumber) -> (Balance, Balance) {
 			StorageOrder::get_order_price(file_size, duration)
+		}
+	}
+
+	impl virtual_machine_runtime_api::VirtualMachineApi<Block, AccountId, BlockNumber, Balance> for Runtime {
+		fn get_virtual_machine_info(id:Vec<u8>) -> ExitVirtualMachine {
+			VirtualMachine::get_virtual_machine_info(id)
 		}
 	}
 
