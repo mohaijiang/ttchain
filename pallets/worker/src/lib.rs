@@ -278,7 +278,7 @@ pub mod pallet {
 		pub fn proof_of_spacetime(
 			origin: OriginFor<T>,
 			orders: Vec<u64>,
-			proofs: Vec<Vec<u8>>,
+			// proofs: Vec<Vec<u8>>,
 			total_storage: u128,
 			used_storage: u128
 		) -> DispatchResultWithPostInfo {
@@ -289,7 +289,7 @@ pub mod pallet {
 			//计算当前阶段
 			let block_number = block_number - (block_number % T::ReportInterval::get());
 			// 校验订单数与证明数匹配
-			ensure!(orders.len() == proofs.len(),Error::<T>::ProofNotMatchOrder);
+			// ensure!(orders.len() == proofs.len(),Error::<T>::ProofNotMatchOrder);
 			//通过矿工查询订单列表
 			let miner_orders = MinerOrderSet::<T>::get(&who);
 			//判断订单列表是否为空
@@ -305,17 +305,17 @@ pub mod pallet {
 				MinerOrderSet::<T>::insert(&who,orders.clone());
 			}else{
 				// 校验订单的时空证明
-				for index in 0..orders.len() {
-					let order_opt = T::StorageOrderInterface::get_storage_order(&orders[index]);
-					if order_opt.is_some() {
-						let proof = &proofs[index];
-						let order = order_opt.unwrap();
-
-						//验证零知识证明
-						let zk_validate = zk::poreq_validate(proof,&order.public_input);
-						ensure!(zk_validate,Error::<T>::ProofInvalid);
-					}
-				}
+				// for index in 0..orders.len() {
+				// 	let order_opt = T::StorageOrderInterface::get_storage_order(&orders[index]);
+				// 	if order_opt.is_some() {
+				// 		let proof = &proofs[index];
+				// 		let order = order_opt.unwrap();
+				//
+				// 		//验证零知识证明
+				// 		let zk_validate = zk::poreq_validate(proof,&order.public_input);
+				// 		ensure!(zk_validate,Error::<T>::ProofInvalid);
+				// 	}
+				// }
 				//订单过滤
 				let miner_orders = miner_orders.into_iter().filter(|index| {
 					let result = orders.contains(index);
