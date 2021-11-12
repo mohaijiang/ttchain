@@ -1,5 +1,5 @@
 ## 镜像构建
-FROM ubuntu:20.04
+FROM debian:11
 
 RUN apt-get update && \
   apt-get install -y openssl && \
